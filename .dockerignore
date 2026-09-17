@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.production.example
+data
+backups
+coverage
+*.log
+*.tsbuildinfo
+.codex
+.agents
