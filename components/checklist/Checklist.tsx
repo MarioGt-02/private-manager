@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { DragEvent, ReactNode } from "react";
 import type { ChecklistItem } from "@/lib/types/object";
 
 interface ChecklistProps {
@@ -19,6 +19,8 @@ export function Checklist({ items, disabled, onToggle, onRename, onDelete, onAdd
   const [childTitle, setChildTitle] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
   const [expandedCompleted, setExpandedCompleted] = useState<Set<string>>(new Set());
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const lock = useRef(false);
@@ -64,6 +66,43 @@ export function Checklist({ items, disabled, onToggle, onRename, onDelete, onAdd
     void perform(() => onReorder(item.parentId, ids));
   }
 
+  function handleDragStart(item: ChecklistItem) {
+    setDragId(item.id);
+    setDragOverId(null);
+  }
+
+  function handleDragOver(event: DragEvent, item: ChecklistItem) {
+    event.preventDefault();
+    if (dragId && dragId !== item.id) setDragOverId(item.id);
+  }
+
+  function handleDrop(event: DragEvent, target: ChecklistItem, siblings: ChecklistItem[]) {
+    event.preventDefault();
+    if (!dragId || dragId === target.id) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+    const sourceIndex = siblings.findIndex((s) => s.id === dragId);
+    const targetIndex = siblings.findIndex((s) => s.id === target.id);
+    if (sourceIndex < 0 || targetIndex < 0) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+    const ids = siblings.map((s) => s.id);
+    const [moved] = ids.splice(sourceIndex, 1);
+    ids.splice(targetIndex, 0, moved);
+    setDragId(null);
+    setDragOverId(null);
+    void perform(() => onReorder(target.parentId, ids));
+  }
+
+  function handleDragEnd() {
+    setDragId(null);
+    setDragOverId(null);
+  }
+
   function toggleExpanded(id: string) {
     setExpandedCompleted((current) => {
       const next = new Set(current);
@@ -84,7 +123,29 @@ export function Checklist({ items, disabled, onToggle, onRename, onDelete, onAdd
 
     return (
       <div key={item.id}>
-        <div className="group flex items-center gap-1.5 py-1" style={{ paddingLeft: depth * 20 }}>
+        <div
+          className={`group flex items-center gap-1.5 py-1 ${dragOverId === item.id ? "rounded bg-indigo-50" : ""} ${dragId === item.id ? "opacity-40" : ""}`}
+          style={{ paddingLeft: depth * 20 }}
+          onDragOver={(e) => handleDragOver(e, item)}
+          onDrop={(e) => handleDrop(e, item, siblings)}
+        >
+          <span
+            draggable={!disabled && !busy}
+            onDragStart={() => handleDragStart(item)}
+            onDragEnd={handleDragEnd}
+            aria-label={`Drag to reorder ${item.title}`}
+            title="Drag to reorder"
+            className="flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-slate-300 hover:bg-slate-100 hover:text-slate-500 active:cursor-grabbing"
+          >
+            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+              <circle cx="3" cy="2" r="1.5" />
+              <circle cx="7" cy="2" r="1.5" />
+              <circle cx="3" cy="7" r="1.5" />
+              <circle cx="7" cy="7" r="1.5" />
+              <circle cx="3" cy="12" r="1.5" />
+              <circle cx="7" cy="12" r="1.5" />
+            </svg>
+          </span>
           {collapsible && isParent && (
             <button
               type="button"

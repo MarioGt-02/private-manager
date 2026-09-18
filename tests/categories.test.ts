@@ -132,7 +132,7 @@ describe("Category presentation and exports", () => {
     expect(render(createElement(ObjectCardOverlay, { object: card }), "cyan")).toContain(colorStyle("cyan").accent);
     const neutral = render(createElement(ObjectCardOverlay, { object })); expect(neutral).not.toContain(tech.name); expect(neutral).toContain(colorStyle(null).accent);
     const swatches = renderToStaticMarkup(createElement(CategoryColorPicker, { value: "blue", onChange: vi.fn() })); expect(swatches).toContain('aria-pressed="true"'); expect(swatches).toContain("✓"); expect(swatches).toContain('aria-label="blue"');
-    const archived = render(createElement(ArchivedRow, { object: { ...card, archivedAt: new Date().toISOString(), cancelledAt: new Date().toISOString() }, disabled: false, onOpen: vi.fn(), onRestore: vi.fn() }));
+    const archived = render(createElement(ArchivedRow, { object: { ...card, archivedAt: new Date().toISOString(), cancelledAt: new Date().toISOString() }, disabled: false, onOpen: vi.fn(), onRestore: vi.fn(), onDelete: vi.fn() }));
     expect(archived).toContain("Tech &amp; Software"); expect(archived).toContain(colorStyle("blue").accent); expect(archived).toContain("line-through"); expect(archived).toContain("Cancelled");
   });
 });

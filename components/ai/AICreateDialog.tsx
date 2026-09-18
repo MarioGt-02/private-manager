@@ -132,7 +132,7 @@ export function AICreateDialog({
   }
 
   return (
-    <WorkspaceDialog label="AI Create" onClose={close} busy={isSending || isCreating} closeOnBackdrop={false}>
+    <WorkspaceDialog label="AI Create" onClose={close} busy={isSending || isCreating}>
         <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="text-base font-semibold text-slate-900">✨ AI Create</h2>
           <button type="button" className="btn-secondary ml-auto mr-2" disabled={isSending || isCreating} onClick={() => { if (messages.length || draft || input) setConfirmReset(true); else reset(); }}>新对话</button>

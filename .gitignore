@@ -47,3 +47,8 @@ next-env.d.ts
 /data/import/*
 !/data/import/.gitkeep
 
+# archives / bundles (never commit packaged builds or backups)
+*.zip
+*.tar.gz
+PrivateManager.zip
+

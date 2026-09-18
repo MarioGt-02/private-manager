@@ -96,7 +96,7 @@ describe("Phase 10 archive/cancel persistence", () => {
     expect(result.status).toBe("ready"); expect(result.cancelledAt).toBe(result.archivedAt); expect(result.archivedAt).not.toBeNull();
     expect(await getObjects()).toEqual([]);
     const page = await getArchivedObjects({status:"ready",filter:"cancelled",offset:0});
-    const html = renderToStaticMarkup(createElement(ArchivedRow,{object:page.objects[0],disabled:false,onOpen:vi.fn(),onRestore:vi.fn()}));
+    const html = renderToStaticMarkup(createElement(ArchivedRow,{object:page.objects[0],disabled:false,onOpen:vi.fn(),onRestore:vi.fn(),onDelete:vi.fn()}));
     expect(html).toContain("line-through"); expect(html).toContain("Cancelled");
     expect((await getArchivedObjects({status:"done",filter:"all",offset:0})).objects).toHaveLength(0);
     const restored = await changeObjectLifecycle(object.id,"restore"); expect(restored).toMatchObject({status:"ready",archivedAt:null,cancelledAt:null});

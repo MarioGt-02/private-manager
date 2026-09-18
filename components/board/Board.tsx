@@ -367,7 +367,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
         </DndContext>
       </div>
 
-      {archiveStatus && <ArchiveDrawer key={archiveStatus} status={archiveStatus} version={historyVersion} onClose={() => setArchiveStatus(null)} onOpen={openArchivedObject} onRestore={(id) => handleLifecycle(id, "restore")} />}
+      {archiveStatus && <ArchiveDrawer key={archiveStatus} status={archiveStatus} version={historyVersion} onClose={() => setArchiveStatus(null)} onOpen={openArchivedObject} onRestore={(id) => handleLifecycle(id, "restore")} onDelete={handleDeleteObject} />}
       <ObjectDrawer
         onDeleteObject={handleDeleteObject}
         onCategoryChange={async (objectId, categoryId) => {

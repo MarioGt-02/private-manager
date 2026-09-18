@@ -1,9 +1,9 @@
 "use client";
 import { useId, useRef, useState } from "react";
 
-export function InlineEditableField({ label, value, onSave, multiline = false, maxLength, prominent = false, disabled = false, compact = false }: {
+export function InlineEditableField({ label, value, onSave, multiline = false, maxLength, prominent = false, disabled = false, compact = false, boxed = false, emptyText = "Not set" }: {
   label: string; value: string; onSave: (value: string) => Promise<void>; multiline?: boolean;
-  maxLength: number; prominent?: boolean; disabled?: boolean; compact?: boolean;
+  maxLength: number; prominent?: boolean; disabled?: boolean; compact?: boolean; boxed?: boolean; emptyText?: string;
 }) {
   const id = useId();
   const [editing, setEditing] = useState(false);
@@ -26,7 +26,14 @@ export function InlineEditableField({ label, value, onSave, multiline = false, m
       <button type="button" disabled={disabled} className="btn-tertiary" aria-label={`Edit ${label}`}
         onClick={() => { setDraft(value); setError(""); setEditing(true); }}>Edit</button>
     </div>
-    <p className={`content-wrap whitespace-pre-wrap ${prominent ? "text-xl font-semibold tracking-tight text-slate-900" : "text-sm leading-6 text-slate-700"}`}>{value || "Not set"}</p>
+    {boxed ? (
+      <button type="button" disabled={disabled} aria-label={`Edit ${label}`} onClick={() => { setDraft(value); setError(""); setEditing(true); }}
+        className="block w-full rounded-lg border border-slate-200 bg-white p-3 text-left transition-colors hover:border-slate-300">
+        {value ? <span className="block min-h-[88px] whitespace-pre-wrap text-sm leading-6 text-slate-700">{value}</span> : <span className="block text-sm text-slate-400">{emptyText}</span>}
+      </button>
+    ) : (
+      <p className={`content-wrap whitespace-pre-wrap ${prominent ? "text-xl font-semibold tracking-tight text-slate-900" : "text-sm leading-6 text-slate-700"}`}>{value || emptyText}</p>
+    )}
   </div>;
   const inputProps = { id, value: draft, maxLength, autoFocus: true, disabled: saving,
     onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft(event.target.value),
