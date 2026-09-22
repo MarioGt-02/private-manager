@@ -62,7 +62,7 @@ export function Column({ column, objects, onSelect, selectedId, onArchive, minim
     <section
       ref={setNodeRef}
       style={{ width }}
-      className={`relative flex min-w-[280px] flex-none flex-col rounded-xl border transition-colors ${
+      className={`relative flex min-h-full min-w-[280px] flex-none flex-col rounded-xl border transition-colors ${
         isOver || resizing ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-slate-100/80"
       }`}
     >
