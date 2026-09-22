@@ -343,7 +343,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="flex h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 sm:gap-4 sm:p-5">
+          <div className="flex h-full items-stretch gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 sm:gap-4 sm:p-5">
             {COLUMNS.map((column) => (
               <Column
                 key={column.id}
