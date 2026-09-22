@@ -29,7 +29,7 @@ function ObjectDropTarget({ object, onSelect, selected, minimized, onToggleMinim
     id: objectDropId(object.id),
     data: { objectId: object.id, status: object.status },
   });
-  return <div ref={setNodeRef} className={`mb-2.5 flow-root rounded-lg ${isOver ? "ring-2 ring-blue-400 ring-offset-2" : ""}`}>
+  return <div ref={setNodeRef} className={`mb-2.5 flow-root break-inside-avoid rounded-lg ${isOver ? "ring-2 ring-blue-400 ring-offset-2" : ""}`}>
     <ObjectCard object={object} onSelect={onSelect} selected={selected} minimized={minimized} onToggleMinimize={onToggleMinimize} pending={pending} onCompleteNextAction={onCompleteNextAction} />
   </div>;
 }
@@ -72,9 +72,9 @@ export function Column({ column, objects, onSelect, selectedId, onArchive, minim
         <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs font-medium tabular-nums text-slate-500 ring-1 ring-slate-200">{objects.length}</span>
         <button type="button" className="btn-tertiary" aria-label={`Archived ${column.label} Objects`} title={`Archived — ${column.label}`} onClick={onArchive}>🗂</button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-0">
+      <div className="px-2.5 pb-0" style={{ columnWidth: 250, columnGap: 10 }}>
         {objects.map((object) => <ObjectDropTarget key={object.id} object={object} onSelect={onSelect} selected={object.id === selectedId} minimized={minimizedIds.has(object.id)} onToggleMinimize={() => onToggleMinimize(object.id)} pending={pendingIds.has(object.id)} onCompleteNextAction={(itemId) => onCompleteNextAction(object.id, itemId)} />)}
-        {!objects.length && <p className="mb-2.5 rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-500">No Objects here yet.</p>}
+        {!objects.length && <p style={{ columnSpan: "all" }} className="mb-2.5 rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-500">No Objects here yet.</p>}
       </div>
       <div
         role="separator" tabIndex={0} aria-label={`${column.label} 列宽`} aria-orientation="vertical"
