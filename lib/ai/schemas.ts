@@ -48,10 +48,10 @@ export const chatRequestSchema = z
   );
 
 /** Model-output draft shape: nested checklist with title + children (no IDs/positions). */
-const chatDraftChildSchema = z.object({ title: z.string(), completed: z.boolean() });
+const chatDraftChildSchema = z.object({ title: z.string(), completed: z.boolean().default(false) });
 const chatDraftChecklistItemSchema = z.object({
   title: z.string(),
-  completed: z.boolean(),
+  completed: z.boolean().default(false),
   children: z.array(chatDraftChildSchema).default([]),
 });
 

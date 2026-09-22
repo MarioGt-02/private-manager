@@ -52,11 +52,10 @@ const chatResponseFormat = {
               currentState: { type: "string" }, nextAction: { type: "string" },
               checklist: { type: "array", items: {
                 type: "object", additionalProperties: false,
-                required: ["title", "completed", "children"],
+                required: ["title", "children"],
                 properties: {
                   title: { type: "string" },
-                  completed: { type: "boolean" },
-                  children: { type: "array", items: { type: "object", additionalProperties: false, required: ["title", "completed"], properties: { title: { type: "string" }, completed: { type: "boolean" } } } },
+                  children: { type: "array", items: { type: "object", additionalProperties: false, required: ["title"], properties: { title: { type: "string" } } } },
                 },
               } },
             },
