@@ -1,10 +1,11 @@
 "use server";
 
+import { z } from "zod";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { createObject } from "@/lib/db/queries";
 import { manualCreateObjectSchema } from "@/lib/validation/manual-edit";
 
-import { createChecklistItem, deleteChecklistItem, renameChecklistItem, reorderChecklistItems, reorderObjects, updateChecklistItem, updateObjectField, updateObjectStatus } from "@/lib/db/queries";
+import { createChecklistItem, deleteChecklistItem, renameChecklistItem, reorderChecklistItems, reorderObjects, updateChecklistItem, updateObjectField, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
 import { checklistItemMutationSchema, checklistReorderSchema, checklistTitleLimit, checklistTitleSchema, objectFieldLimits, objectReorderSchema, updateObjectFieldsSchema } from "@/lib/validation/manual-edit";
 import { isStatus } from "@/lib/types/object";
 import type { ChecklistItem } from "@/lib/types/object";
@@ -85,3 +86,26 @@ export async function reorderChecklistItemsAction(input: unknown) {
   if (!parsed.success) throw new Error("Invalid checklist ordering.");
   return reorderChecklistItems(parsed.data.objectId, parsed.data.parentId ?? null, parsed.data.orderedItemIds);
 }
+const recurrenceSchema = z
+  .object({
+    frequency: z.enum(["daily", "weekly", "monthly", "yearly"]),
+    interval: z.number().int().min(1).max(100),
+    basis: z.enum(["scheduled_date", "completion_date"]),
+    nextDate: z.string().nullable(),
+  })
+  .nullable();
+
+export async function updateObjectRecurrenceAction(objectId: string, input: unknown) {
+  await requireAuth();
+  const parsed = recurrenceSchema.safeParse(input);
+  if (!parsed.success) throw new Error("Invalid recurrence.");
+  return updateObjectRecurrence(objectId, parsed.data);
+}
+
+export async function updateOccurrenceNoteAction(objectId: string, note: string) {
+  await requireAuth();
+  const parsed = z.string().max(2000).safeParse(note);
+  if (!parsed.success) throw new Error("Invalid note.");
+  return updateOccurrenceNote(objectId, parsed.data);
+}
+

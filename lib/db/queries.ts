@@ -7,11 +7,14 @@ import type {
   ChecklistItem,
   ManagedObject,
   ObjectStatus,
+  RecurrenceBasis,
+  RecurrenceFrequency,
 } from "@/lib/types/object";
 
 type ObjectRow = typeof objects.$inferSelect;
 type ChecklistRow = typeof checklistItems.$inferSelect;
 import { deriveNextAction, sortChecklist, withDerivedCompletion } from "@/lib/objects/next-action";
+import { addInterval, today } from "@/lib/recurrence/calc";
 export { deriveNextAction, COMPLETION_NEXT_ACTION } from "@/lib/objects/next-action";
 
 function toChecklistItem(row: ChecklistRow): ChecklistItem {
@@ -61,6 +64,18 @@ export function toManagedObject(row: ObjectRow, items: ChecklistItem[], unresolv
     nextAction: row.nextAction,
     checklist: items,
     unresolvedDependencies,
+    recurrence: row.recurrenceFrequency
+      ? {
+          seriesId: row.recurrenceSeriesId ?? row.id,
+          frequency: row.recurrenceFrequency,
+          interval: row.recurrenceInterval,
+          basis: row.recurrenceBasis ?? "scheduled_date",
+          nextDate: row.recurrenceNextDate,
+          previousOccurrenceId: row.previousOccurrenceId,
+          nextOccurrenceId: row.nextOccurrenceId,
+        }
+      : null,
+    occurrenceNote: row.occurrenceNote ?? null,
   };
 }
 
@@ -220,6 +235,135 @@ export async function deleteObject(id: string): Promise<void> {
   await db.delete(objects).where(eq(objects.id, id));
 }
 
+/**
+ * Generate the next occurrence of a recurring Object, inside an existing
+ * transaction. Returns the new Object id, or null when the Object is not
+ * recurring or has already generated its next occurrence (idempotent).
+ *
+ * The current Object stays Done and is never reset. The new occurrence copies
+ * reusable template fields, clones checklist structure with completion reset,
+ * derives Next Action, and links lineage. Occurrence Note, Current State,
+ * archive/cancel state and dependencies are intentionally NOT copied.
+ */
+export async function generateNextOccurrence(tx: Tx, objectId: string): Promise<string | null> {
+  const [current] = await tx.select().from(objects).where(eq(objects.id, objectId)).for("update");
+  if (!current || !current.recurrenceFrequency || current.nextOccurrenceId) return null;
+
+  const items = await tx
+    .select()
+    .from(checklistItems)
+    .where(eq(checklistItems.objectId, objectId))
+    .orderBy(asc(checklistItems.position));
+
+  const baseDate = current.recurrenceBasis === "completion_date" ? today() : (current.recurrenceNextDate ?? today());
+  const nextDate = addInterval(baseDate, current.recurrenceFrequency, current.recurrenceInterval);
+
+  const nextId = randomUUID();
+  await tx.insert(objects).values({
+    id: nextId,
+    title: current.title,
+    goal: current.goal,
+    categoryId: current.categoryId,
+    status: "idea",
+    recurrenceSeriesId: current.recurrenceSeriesId ?? current.id,
+    recurrenceFrequency: current.recurrenceFrequency,
+    recurrenceInterval: current.recurrenceInterval,
+    recurrenceBasis: current.recurrenceBasis,
+    recurrenceNextDate: nextDate,
+    previousOccurrenceId: current.id,
+    occurrenceNote: null,
+  });
+
+  const idMap = new Map<string, string>();
+  for (const item of items) idMap.set(item.id, randomUUID());
+  const insertRows = items.map((item) => ({
+    id: idMap.get(item.id)!,
+    objectId: nextId,
+    parentId: item.parentId ? (idMap.get(item.parentId) ?? null) : null,
+    title: item.title,
+    completed: false,
+    position: item.position,
+  }));
+  if (insertRows.length) {
+    await tx.insert(checklistItems).values(insertRows);
+    const nextActionItems: ChecklistItem[] = insertRows.map(({ id, parentId, title, completed, position }) => ({ id, parentId, title, completed, position }));
+    await tx.update(objects).set({ nextAction: deriveNextAction(nextActionItems) }).where(eq(objects.id, nextId));
+  }
+
+  await tx.update(objects).set({ nextOccurrenceId: nextId }).where(eq(objects.id, current.id));
+
+  await tx.insert(objectUpdates).values({ id: randomUUID(), objectId: current.id, type: "recurrence_generated", content: `Generated next occurrence for ${nextDate}` });
+  await tx.insert(objectUpdates).values({ id: randomUUID(), objectId: nextId, type: "object_created", content: `Created from recurring Object: ${current.title}` });
+
+  return nextId;
+}
+
+export interface RecurrenceInput {
+  frequency: RecurrenceFrequency;
+  interval: number;
+  basis: RecurrenceBasis;
+  nextDate: string | null;
+}
+
+/**
+ * Enable, update, or disable recurrence on an Object. Passing `null` disables
+ * recurrence (the Object stops generating future occurrences but keeps its
+ * lineage history). Enabling a previously non-recurring Object seeds its
+ * series identity with its own id.
+ */
+export async function updateObjectRecurrence(objectId: string, input: RecurrenceInput | null): Promise<ManagedObject> {
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(objects).where(eq(objects.id, objectId)).for("update");
+    if (!current) throw new Error("Object not found.");
+
+    if (!input) {
+      await tx
+        .update(objects)
+        .set({ recurrenceFrequency: null, recurrenceBasis: null, recurrenceNextDate: null, updatedAt: new Date() })
+        .where(eq(objects.id, objectId));
+      await tx.insert(objectUpdates).values({ id: randomUUID(), objectId, type: "recurrence_disabled", content: "Stopped recurrence." });
+      return;
+    }
+
+    const wasRecurring = !!current.recurrenceFrequency;
+    await tx
+      .update(objects)
+      .set({
+        recurrenceSeriesId: current.recurrenceSeriesId ?? objectId,
+        recurrenceFrequency: input.frequency,
+        recurrenceInterval: input.interval,
+        recurrenceBasis: input.basis,
+        recurrenceNextDate: input.nextDate,
+        updatedAt: new Date(),
+      })
+      .where(eq(objects.id, objectId));
+    await tx.insert(objectUpdates).values({
+      id: randomUUID(),
+      objectId,
+      type: wasRecurring ? "recurrence_updated" : "recurrence_enabled",
+      content: wasRecurring ? "Updated recurrence." : `Enabled recurrence: every ${input.interval} ${input.frequency}.`,
+    });
+  });
+  const updated = await getObject(objectId);
+  if (!updated) throw new Error("Object not found.");
+  return updated;
+}
+
+/** Update the free-form occurrence note (not copied to the next occurrence). */
+export async function updateOccurrenceNote(objectId: string, note: string): Promise<ManagedObject> {
+  const db = getDb();
+  await db.transaction(async (tx) => {
+    const [current] = await tx.select({ id: objects.id }).from(objects).where(eq(objects.id, objectId)).for("update");
+    if (!current) throw new Error("Object not found.");
+    await tx.update(objects).set({ occurrenceNote: note, updatedAt: new Date() }).where(eq(objects.id, objectId));
+    await tx.insert(objectUpdates).values({ id: randomUUID(), objectId, type: "occurrence_note_updated", content: "Updated occurrence note." });
+  });
+  const updated = await getObject(objectId);
+  if (!updated) throw new Error("Object not found.");
+  return updated;
+}
+
 export async function updateObjectStatus(
   id: string,
   status: ObjectStatus,
@@ -235,6 +379,8 @@ export async function updateObjectStatus(
       .update(objects)
       .set({ status, updatedAt: new Date() })
       .where(eq(objects.id, id));
+
+    if (status === "done") await generateNextOccurrence(tx, id);
 
     await tx.insert(objectUpdates).values({
       id: randomUUID(),
@@ -300,6 +446,7 @@ export async function reorderObjects(
       for (const [position, row] of sourceRows.entries()) {
         await tx.update(objects).set({ position }).where(eq(objects.id, row.id));
       }
+      if (targetStatus === "done") await generateNextOccurrence(tx, objectId);
       await tx.insert(objectUpdates).values({
         id: randomUUID(), objectId, type: "status_changed", content: targetStatus,
       });

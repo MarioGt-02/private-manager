@@ -50,6 +50,13 @@
       "when": 1790168236453,
       "tag": "0006_faulty_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790173622067,
+      "tag": "0007_clever_annihilus",
+      "breakpoints": true
     }
   ]
 }

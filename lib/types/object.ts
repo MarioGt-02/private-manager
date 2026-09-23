@@ -17,6 +17,19 @@ export interface ChecklistItem {
   position: number;
 }
 
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+export type RecurrenceBasis = "scheduled_date" | "completion_date";
+
+export interface RecurrenceConfig {
+  seriesId: string;
+  frequency: RecurrenceFrequency;
+  interval: number;
+  basis: RecurrenceBasis;
+  nextDate: string | null;
+  previousOccurrenceId: string | null;
+  nextOccurrenceId: string | null;
+}
+
 export interface ManagedObject {
   id: string;
   title: string;
@@ -31,6 +44,8 @@ export interface ManagedObject {
   nextAction: string;
   checklist: ChecklistItem[];
   unresolvedDependencies: number;
+  recurrence: RecurrenceConfig | null;
+  occurrenceNote: string | null;
 }
 
 export interface ColumnDefinition {

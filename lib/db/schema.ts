@@ -1,6 +1,7 @@
 import {
   AnyPgColumn,
   boolean,
+  date,
   index,
   integer,
   pgEnum,
@@ -35,6 +36,18 @@ export const objectStatusEnum = pgEnum("object_status", [
 
 export type ObjectStatus = (typeof objectStatusEnum.enumValues)[number];
 
+export const recurrenceFrequencyEnum = pgEnum("recurrence_frequency", [
+  "daily",
+  "weekly",
+  "monthly",
+  "yearly",
+]);
+
+export const recurrenceBasisEnum = pgEnum("recurrence_basis", [
+  "scheduled_date",
+  "completion_date",
+]);
+
 /**
  * One complete thing, outcome, or goal. NOT a task.
  */
@@ -58,9 +71,18 @@ export const objects = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    recurrenceSeriesId: text("recurrence_series_id"),
+    recurrenceFrequency: recurrenceFrequencyEnum("recurrence_frequency"),
+    recurrenceInterval: integer("recurrence_interval").notNull().default(1),
+    recurrenceBasis: recurrenceBasisEnum("recurrence_basis"),
+    recurrenceNextDate: date("recurrence_next_date", { mode: "string" }),
+    previousOccurrenceId: text("previous_occurrence_id").references((): AnyPgColumn => objects.id, { onDelete: "set null" }),
+    nextOccurrenceId: text("next_occurrence_id").references((): AnyPgColumn => objects.id, { onDelete: "set null" }),
+    occurrenceNote: text("occurrence_note"),
   },
   (table) => [
     index("objects_status_idx").on(table.status),
+    index("objects_recurrence_series_id_idx").on(table.recurrenceSeriesId),
     index("objects_status_archived_at_idx").on(table.status, table.archivedAt),
     index("objects_status_position_idx").on(table.status, table.position),
   ],

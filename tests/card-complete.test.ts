@@ -6,7 +6,7 @@ import { CardBody } from "@/components/board/ObjectCard";
 import type { ChecklistItem, ManagedObject } from "@/lib/types/object";
 
 const item = (id: string, title: string, completed = false, parentId: string | null = null, position = 0): ChecklistItem => ({ id, parentId, title, completed, position });
-const obj = (checklist: ChecklistItem[], nextAction: string): ManagedObject => ({ id: "o1", title: "Title", status: "doing", position: 0, category: null, categoryId: null, archivedAt: null, cancelledAt: null, goal: "Goal", currentState: "Current", nextAction, checklist, unresolvedDependencies: 0 });
+const obj = (checklist: ChecklistItem[], nextAction: string): ManagedObject => ({ id: "o1", title: "Title", status: "doing", position: 0, category: null, categoryId: null, archivedAt: null, cancelledAt: null, goal: "Goal", currentState: "Current", nextAction, checklist, unresolvedDependencies: 0, recurrence: null, occurrenceNote: null });
 
 describe("getFirstActionableIncompleteLeaf", () => {
   it("returns the first unfinished flat leaf by id", () => {

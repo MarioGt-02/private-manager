@@ -12,7 +12,8 @@ import {
 } from "@dnd-kit/core";
 import { deriveNextAction, withDerivedCompletion } from "@/lib/objects/next-action";
 import { COLUMNS, isStatus } from "@/lib/types/object";
-import type { ManagedObject } from "@/lib/types/object";
+import type { ManagedObject, RecurrenceConfig } from "@/lib/types/object";
+import type { RecurrenceFormInput } from "@/components/recurrence/RecurrenceControls";
 import { Column } from "./Column";
 import { ObjectCardOverlay } from "./ObjectCard";
 import { CancelDropZone, CANCEL_DROP_ID, ARCHIVE_DROP_ID, OBJECT_DROP_PREFIX, boardCollisionDetection } from "./CancelDropZone";
@@ -27,6 +28,8 @@ import {
   renameChecklistItemAction,
   deleteChecklistItemAction,
   reorderChecklistItemsAction,
+  updateObjectRecurrenceAction,
+  updateOccurrenceNoteAction,
 } from "@/lib/actions/object-actions";
 import { ArchiveDrawer } from "@/components/archive/ArchiveDrawer";
 import { DataExport } from "@/components/data/DataExport";
@@ -222,6 +225,34 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     setObjects((items) => items.map((item) => item.id === objectId ? { ...item, [field]: value } : item));
     try { const saved = await updateObjectFieldsAction({ objectId, field, value }); setObjects((items) => items.map((item) => item.id === objectId ? { ...item, [field]: saved[field] } : item)); refreshActivity(objectId); } catch { setObjects((items) => items.map((item) => item.id === objectId ? { ...item, [field]: previous[field] } : item)); throw new Error("Could not save changes."); }
   }
+  async function handleUpdateRecurrence(objectId: string, config: RecurrenceFormInput | null) {
+    const previous = objects.find((item) => item.id === objectId);
+    if (!previous) return;
+    const optimisticRecurrence: RecurrenceConfig | null = config ? { seriesId: previous.recurrence?.seriesId ?? objectId, frequency: config.frequency, interval: config.interval, basis: config.basis, nextDate: config.nextDate, previousOccurrenceId: previous.recurrence?.previousOccurrenceId ?? null, nextOccurrenceId: previous.recurrence?.nextOccurrenceId ?? null } : null;
+    setObjects((items) => items.map((item) => item.id === objectId ? { ...item, recurrence: optimisticRecurrence } : item));
+    try {
+      const saved = await updateObjectRecurrenceAction(objectId, config ? { frequency: config.frequency, interval: config.interval, basis: config.basis, nextDate: config.nextDate } : null);
+      setObjects((items) => items.map((item) => item.id === objectId ? saved : item));
+      refreshActivity(objectId);
+    } catch {
+      setObjects((items) => items.map((item) => item.id === objectId ? previous : item));
+      throw new Error("Could not save recurrence.");
+    }
+  }
+
+  async function handleUpdateNote(objectId: string, note: string) {
+    const previous = objects.find((item) => item.id === objectId);
+    if (!previous) return;
+    setObjects((items) => items.map((item) => item.id === objectId ? { ...item, occurrenceNote: note } : item));
+    try {
+      const saved = await updateOccurrenceNoteAction(objectId, note);
+      setObjects((items) => items.map((item) => item.id === objectId ? saved : item));
+      refreshActivity(objectId);
+    } catch {
+      setObjects((items) => items.map((item) => item.id === objectId ? previous : item));
+      throw new Error("Could not save note.");
+    }
+  }
 
   async function handleAddChecklist(objectId: string, title: string, parentId?: string | null) {
     try { const item = await addChecklistItemAction(objectId, title, parentId); refreshActivity(objectId); setObjects((items) => items.map((object) => object.id === objectId ? { ...object, checklist: withDerivedCompletion([...object.checklist, item]), nextAction: deriveNextAction([...object.checklist, item]) } : object)); } catch { throw new Error("Could not add the checklist item."); }
@@ -392,6 +423,8 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
         onApplyReplan={handleApplyReplan}
         onLifecycle={handleLifecycle}
         onOpenObject={openDependencyObject}
+        onUpdateRecurrence={handleUpdateRecurrence}
+        onUpdateNote={handleUpdateNote}
       />
 
       {cancelTarget && <CancelObjectDialog key={cancelTarget.id} object={cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={() => handleLifecycle(cancelTarget.id, "cancel")} />}

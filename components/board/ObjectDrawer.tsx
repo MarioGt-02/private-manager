@@ -7,6 +7,7 @@ import { InlineEditableField } from "@/components/ui/InlineEditableField";
 import { WorkspaceDialog } from "@/components/ui/WorkspaceDialog";
 import { CategorySelect } from "@/components/categories/CategorySelect";
 import { DependenciesSection } from "@/components/dependencies/DependenciesSection";
+import { RecurrenceControls, type RecurrenceFormInput } from "@/components/recurrence/RecurrenceControls";
 import { COLUMNS, type ManagedObject } from "@/lib/types/object";
 
 interface ObjectDrawerProps {
@@ -23,11 +24,13 @@ interface ObjectDrawerProps {
   onApplyProgress: (objectId: string, update: unknown) => Promise<void>;
   onApplyReplan: (objectId: string, proposal: unknown) => Promise<void>;
   onOpenObject: (objectId: string) => void;
+  onUpdateRecurrence: (objectId: string, config: RecurrenceFormInput | null) => Promise<void>;
+  onUpdateNote: (objectId: string, note: string) => Promise<void>;
 }
 export function ObjectDrawer(props: ObjectDrawerProps) {
   return props.object ? <DrawerContent key={props.object.id} {...props} object={props.object} /> : null;
 }
-function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject, onOpenObject }: ObjectDrawerProps & { object: ManagedObject }) {
+function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject, onOpenObject, onUpdateRecurrence, onUpdateNote }: ObjectDrawerProps & { object: ManagedObject }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lifecycleError, setLifecycleError] = useState("");
   const archived = !!object.archivedAt;
@@ -83,6 +86,9 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
         <InlineEditableField label="Current State" value={object.currentState} multiline maxLength={1000} disabled={pending || archived} onSave={(value) => manual(() => onEditField(object.id, "currentState", value))} />
         <InlineEditableField label="Next Action" value={object.nextAction} multiline maxLength={500} disabled={pending || archived} onSave={(value) => manual(() => onEditField(object.id, "nextAction", value))} />
       </div>
+      <div className="mt-3">
+        <InlineEditableField label="Occurrence note" value={object.occurrenceNote ?? ""} multiline boxed emptyText="+ Add note" maxLength={2000} disabled={pending || archived} onSave={(value) => manual(() => onUpdateNote(object.id, value))} />
+      </div>
       <section aria-label="Checklist" className="mt-4 border-t border-slate-200 pt-3">
         <div className="mb-1 flex items-center justify-between"><h3 className="section-label">Checklist</h3><span className="text-xs tabular-nums text-slate-500">{completed} / {object.checklist.length}</span></div>
         <Checklist items={object.checklist} disabled={pending || archived}
@@ -93,6 +99,10 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
           onReorder={(parentId, ids) => manual(() => onReorderChecklist(object.id, parentId, ids))} />
       </section>
       <DependenciesSection objectId={object.id} disabled={pending || archived} onOpenObject={onOpenObject} />
+      <section aria-label="Recurring" className="mt-4 border-t border-slate-200 pt-3">
+        <h3 className="section-label mb-1">Recurring</h3>
+        <RecurrenceControls config={object.recurrence} disabled={pending || archived} onSave={(config) => manual(() => onUpdateRecurrence(object.id, config))} />
+      </section>
       <div hidden={archived} className="mt-4 border-t border-slate-200 pt-3">
         <ObjectAI object={object} disabled={pending} onPendingChange={setPending} onApplyProgress={onApplyProgress} onApplyReplan={onApplyReplan} />
       </div>
