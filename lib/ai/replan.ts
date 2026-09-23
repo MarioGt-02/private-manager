@@ -2,18 +2,23 @@ import { z } from "zod";
 
 export const replanRequestSchema = z.object({ message: z.string().trim().min(1).max(4000) });
 
+const changeTypeSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.toLowerCase() : value),
+  z.enum(["keep", "modify", "add"]),
+);
+
 const replanChildSchema = z.object({
   sourceItemId: z.string().nullable(),
   title: z.string().trim().min(1).max(300),
   completed: z.boolean(),
-  changeType: z.enum(["keep", "modify", "add"]),
+  changeType: changeTypeSchema,
 });
 
 const replanChecklistItemSchema = z.object({
   sourceItemId: z.string().nullable(),
   title: z.string().trim().min(1).max(300),
   completed: z.boolean(),
-  changeType: z.enum(["keep", "modify", "add"]),
+  changeType: changeTypeSchema,
   children: z.array(replanChildSchema).max(10).default([]),
 });
 
@@ -35,7 +40,7 @@ Checklist hierarchy:
 - Checklist items may contain one level of children. A top-level item may group several concrete child steps. Never create grandchildren.
 - Use children only when a top-level item represents a meaningful phase/group containing multiple concrete executable steps. Keep simple plans flat.
 - A parent with children has derived completion; keep a parent's completed consistent with its children in your proposal.
-- sourceItemId preserves an existing item (KEEP or MODIFY). New items (ADD) use sourceItemId null. Existing items you no longer want go in removedItemIds.
+- changeType is exactly one of "keep", "modify", or "add" (lowercase). sourceItemId preserves an existing item for "keep" or "modify". New items use changeType "add" and sourceItemId null. Existing items you no longer want go in removedItemIds.
 - Do not invent database ids.
 
 Return title, goal, currentState, reasonSummary, checklist (nested: each item with sourceItemId/title/completed/changeType and an optional children array), removedItemIds, and concise summary.`;
