@@ -10,6 +10,7 @@ interface ObjectDraftPreviewProps {
   isCreating: boolean;
   onChange: (draft: CreateObjectDraft) => void;
   onKeepDiscussing: () => void;
+  keepLabel?: string;
   onCreate: () => void;
 }
 
@@ -20,6 +21,7 @@ export function ObjectDraftPreview({
   onChange,
   onKeepDiscussing,
   onCreate,
+  keepLabel = "Keep Discussing",
 }: ObjectDraftPreviewProps) {
   function updateField<K extends keyof CreateObjectDraft>(key: K, value: CreateObjectDraft[K]) {
     onChange({ ...draft, [key]: value });
@@ -164,7 +166,7 @@ export function ObjectDraftPreview({
       </div>
 
       <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-white py-3">
-        <button type="button" onClick={onKeepDiscussing} disabled={isCreating} className="btn-secondary">Keep Discussing</button>
+        <button type="button" onClick={onKeepDiscussing} disabled={isCreating} className="btn-secondary">{keepLabel}</button>
         <button type="button" onClick={onCreate} disabled={isCreating || !canCreate} className="btn-primary">{isCreating ? "Creating…" : "Create Object"}</button>
       </div>
     </fieldset>

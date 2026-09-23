@@ -70,6 +70,19 @@ export const chatResponseSchema = z.object({
     .nullable(),
 });
 
+export const quickCreateRequestSchema = z.object({
+  text: z.string().trim().min(1).max(20000),
+});
+
+export const quickCreateResponseSchema = z.object({
+  title: z.string(),
+  goal: z.string(),
+  currentState: z.string(),
+  nextAction: z.string(),
+  suggestedCategoryName: z.string().nullable().default(null),
+  checklist: z.array(chatDraftChecklistItemSchema),
+});
+
 /**
  * Compatibility for providers that ignore the structured checklist item schema
  * and return a legacy flat string array.

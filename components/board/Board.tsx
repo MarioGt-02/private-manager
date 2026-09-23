@@ -36,6 +36,7 @@ import { DataExport } from "@/components/data/DataExport";
 import type { LifecycleAction } from "@/lib/archive/schemas";
 import type { ObjectStatus } from "@/lib/types/object";
 import { AICreateDialog } from "@/components/ai/AICreateDialog";
+import { QuickCreateDialog } from "@/components/ai/QuickCreateDialog";
 import { reorderBoardObjects } from "@/lib/objects/board-order";
 import { ApiError, parseErrorDetail } from "@/lib/errors/client";
 import { CategoryProvider, mutateCategory } from "@/components/categories/CategoryContext";
@@ -72,6 +73,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isAICreateOpen, setIsAICreateOpen] = useState(false);
   const [isManualCreateOpen, setIsManualCreateOpen] = useState(false);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   const [minimizedIds, setMinimizedIds] = useState<Set<string>>(() => new Set(initialObjects.filter((object) => object.status === "idea").map((object) => object.id)));
   const [pendingCompleteIds, setPendingCompleteIds] = useState<Set<string>>(new Set());
 
@@ -342,6 +344,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           <form action="/api/auth/logout" method="post">
             <button type="submit" className="btn-secondary">Logout</button>
           </form>
+          <button type="button" className="btn-secondary" onClick={() => setIsQuickCreateOpen(true)}>⚡ Quick Create</button>
           <button type="button" className="btn-secondary" onClick={() => setIsManualCreateOpen(true)}>＋ 手动添加</button>
           <button
             type="button"
@@ -433,6 +436,11 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
       <AICreateDialog
         open={isAICreateOpen}
         onClose={() => setIsAICreateOpen(false)}
+        onCreated={handleObjectCreated}
+      />
+      <QuickCreateDialog
+        open={isQuickCreateOpen}
+        onClose={() => setIsQuickCreateOpen(false)}
         onCreated={handleObjectCreated}
       />
       {managingCategories && <CategoryManager onClose={() => setManagingCategories(false)} />}
