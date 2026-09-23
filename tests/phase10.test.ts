@@ -39,6 +39,7 @@ beforeAll(async () => {
   await pg.exec(await readFile("drizzle/0003_silent_groot.sql", "utf8"));
   await pg.exec(await readFile("drizzle/0004_keen_diamondback.sql", "utf8"));
   await pg.exec(await readFile("drizzle/0005_boring_quicksilver.sql", "utf8"));
+  await pg.exec(await readFile("drizzle/0006_faulty_meteorite.sql", "utf8"));
   const result = await pg.query<{ archived_at: null; cancelled_at: null }>("select archived_at,cancelled_at from objects where id='preexisting'");
   expect(result.rows).toEqual([{ archived_at: null, cancelled_at: null }]);
 }, 30000);

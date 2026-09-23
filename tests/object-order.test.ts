@@ -19,7 +19,7 @@ import type { ManagedObject } from "@/lib/types/object";
 beforeAll(async () => {
   pg = new PGlite();
   db = drizzle(pg, { schema });
-  for (const migration of ["0000_flaky_meggan", "0001_object_archive_metadata", "0002_object_category_presentation", "0003_silent_groot", "0004_keen_diamondback", "0005_boring_quicksilver"]) {
+  for (const migration of ["0000_flaky_meggan", "0001_object_archive_metadata", "0002_object_category_presentation", "0003_silent_groot", "0004_keen_diamondback", "0005_boring_quicksilver", "0006_faulty_meteorite"]) {
     await pg.exec(await readFile(`drizzle/${migration}.sql`, "utf8"));
   }
 }, 30000);
@@ -138,7 +138,7 @@ describe("Object ordering", () => {
       { id: "a", status: "ready", position: 0 },
       { id: "b", status: "ready", position: 1 },
       { id: "c", status: "ready", position: 2 },
-    ].map((item) => ({ ...item, title: item.id, category: null, archivedAt: null, cancelledAt: null, goal: "", currentState: "", nextAction: "", checklist: [] })) as ManagedObject[];
+    ].map((item) => ({ ...item, title: item.id, category: null, archivedAt: null, cancelledAt: null, goal: "", currentState: "", nextAction: "", checklist: [], unresolvedDependencies: 0 })) as ManagedObject[];
     expect(reorderBoardObjects(base, "a", "ready", "b", true)?.orderedObjectIds).toEqual(["b", "a", "c"]);
     expect(reorderBoardObjects(base, "c", "ready", "b", false)?.orderedObjectIds).toEqual(["a", "c", "b"]);
   });

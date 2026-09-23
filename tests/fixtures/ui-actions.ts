@@ -5,7 +5,7 @@ const text = "安装120×60cm电竞洞洞板 — Design a calm workspace with a 
 export const fixture = {
   failNext: false,
   events: [] as { id: string; objectId: string; type: string; content: string; createdAt: string }[],
-  objects: [{ id: "fixture-object", title: text, status: "doing", position: 0, category: null, archivedAt: null, cancelledAt: null, goal: "整理设备，让每天使用的工具伸手可及。".repeat(18), currentState: "安装位置已确定，工具已经备齐。".repeat(12), nextAction: "Prepare wall mounting hardware", checklist: Array.from({length: 22}, (_, i) => ({ id: `fixture-item-${i}`, title: i === 1 ? "Prepare wall mounting hardware" : `步骤 ${i + 1} · ${"A long checklist item with 中文内容 ".repeat(i === 4 ? 8 : 1)}`, completed: i === 0, position: i })) } as ManagedObject],
+  objects: [{ id: "fixture-object", title: text, status: "doing", position: 0, category: null, archivedAt: null, cancelledAt: null, goal: "整理设备，让每天使用的工具伸手可及。".repeat(18), currentState: "安装位置已确定，工具已经备齐。".repeat(12), nextAction: "Prepare wall mounting hardware", checklist: Array.from({length: 22}, (_, i) => ({ id: `fixture-item-${i}`, title: i === 1 ? "Prepare wall mounting hardware" : `步骤 ${i + 1} · ${"A long checklist item with 中文内容 ".repeat(i === 4 ? 8 : 1)}`, completed: i === 0, position: i })), unresolvedDependencies: 0 } as ManagedObject],
 };
 Object.assign(window, { uiFixture: fixture });
 function current() { return fixture.objects[0]; }
@@ -13,7 +13,7 @@ export async function createManualObjectAction(input: unknown) {
   const data = manualCreateObjectSchema.parse(input);
   await new Promise((resolve) => setTimeout(resolve, 150));
   if (fixture.failNext) { fixture.failNext = false; throw new Error("Simulated save failure"); }
-  const object: ManagedObject = { ...data, id: crypto.randomUUID(), position: fixture.objects.filter((item) => item.status === data.status).length, category: null, archivedAt: null, cancelledAt: null, checklist: [] };
+  const object: ManagedObject = { ...data, id: crypto.randomUUID(), position: fixture.objects.filter((item) => item.status === data.status).length, category: null, archivedAt: null, cancelledAt: null, checklist: [], unresolvedDependencies: 0 };
   fixture.objects.push(object);
   fixture.events.unshift({ id: crypto.randomUUID(), objectId: object.id, type: "object_created", content: "Object created manually.", createdAt: new Date().toISOString() });
   return structuredClone(object);

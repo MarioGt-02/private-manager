@@ -30,6 +30,7 @@ export interface ManagedObject {
   currentState: string;
   nextAction: string;
   checklist: ChecklistItem[];
+  unresolvedDependencies: number;
 }
 
 export interface ColumnDefinition {

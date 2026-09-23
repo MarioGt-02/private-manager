@@ -6,7 +6,7 @@ import { deriveNextAction, COMPLETION_NEXT_ACTION } from "@/lib/objects/next-act
 import type { ManagedObject } from "@/lib/types/object";
 
 const object: ManagedObject = {
-  id: "object-uuid", title: "Install board", goal: "Organize equipment", status: "doing", position: 0, category: null, archivedAt: null, cancelledAt: null, currentState: "Position measured", nextAction: "Prepare screws",
+  id: "object-uuid", title: "Install board", goal: "Organize equipment", status: "doing", position: 0, category: null, archivedAt: null, cancelledAt: null, currentState: "Position measured", nextAction: "Prepare screws", unresolvedDependencies: 0,
   checklist: [
     { id: "uuid-completed", title: "Measure wall", completed: true, position: 0, parentId: null },
     { id: "uuid-current", title: "Prepare screws", completed: false, position: 1, parentId: null },

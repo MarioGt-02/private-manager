@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, isNull, getTableColumns } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull, ne, getTableColumns } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
-import { categories, checklistItems, objects, objectUpdates } from "./schema";
+import { categories, checklistItems, objectDependencies, objects, objectUpdates } from "./schema";
 import { InvalidCategoryError } from "@/lib/categories/suggestion";
 import type {
   ChecklistItem,
@@ -46,7 +46,7 @@ async function syncParentCompletion(tx: Tx, objectId: string): Promise<void> {
   }
 }
 
-export function toManagedObject(row: ObjectRow, items: ChecklistItem[]): ManagedObject {
+export function toManagedObject(row: ObjectRow, items: ChecklistItem[], unresolvedDependencies = 0): ManagedObject {
   return {
     id: row.id,
     title: row.title,
@@ -60,12 +60,13 @@ export function toManagedObject(row: ObjectRow, items: ChecklistItem[]): Managed
     currentState: row.currentState,
     nextAction: row.nextAction,
     checklist: items,
+    unresolvedDependencies,
   };
 }
 
 export async function getObjects(): Promise<ManagedObject[]> {
   const db = getDb();
-  const [objectRows, itemRows] = await Promise.all([
+  const [objectRows, itemRows, dependencyRows] = await Promise.all([
     db.select().from(objects).where(isNull(objects.archivedAt)).orderBy(asc(objects.status), asc(objects.position), asc(objects.createdAt), asc(objects.id)),
     db
       .select(getTableColumns(checklistItems))
@@ -73,6 +74,12 @@ export async function getObjects(): Promise<ManagedObject[]> {
       .innerJoin(objects, eq(checklistItems.objectId, objects.id))
       .where(isNull(objects.archivedAt))
       .orderBy(asc(checklistItems.position)),
+    db
+      .select({ objectId: objectDependencies.objectId, unresolved: count() })
+      .from(objectDependencies)
+      .innerJoin(objects, eq(objectDependencies.dependsOnObjectId, objects.id))
+      .where(ne(objects.status, "done"))
+      .groupBy(objectDependencies.objectId),
   ]);
 
   const itemsByObject = new Map<string, ChecklistItem[]>();
@@ -82,8 +89,11 @@ export async function getObjects(): Promise<ManagedObject[]> {
     itemsByObject.set(row.objectId, list);
   }
 
+  const unresolvedByObject = new Map<string, number>();
+  for (const row of dependencyRows) unresolvedByObject.set(row.objectId, row.unresolved);
+
   return objectRows.map((row) =>
-    toManagedObject(row, prepareChecklist(itemsByObject.get(row.id) ?? [])),
+    toManagedObject(row, prepareChecklist(itemsByObject.get(row.id) ?? []), unresolvedByObject.get(row.id) ?? 0),
   );
 }
 
