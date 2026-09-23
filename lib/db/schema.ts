@@ -5,6 +5,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -110,4 +111,29 @@ export const objectUpdates = pgTable(
       .defaultNow(),
   },
   (table) => [index("object_updates_object_id_idx").on(table.objectId)],
+);
+
+/**
+ * A single canonical dependency relationship: `objectId` depends on
+ * `dependsOnObjectId`. The inverse ("Blocking") direction is derived from this
+ * same table, never stored separately. The composite primary key enforces
+ * uniqueness (no duplicate A -> B) and doubles as the forward index.
+ */
+export const objectDependencies = pgTable(
+  "object_dependencies",
+  {
+    objectId: text("object_id")
+      .notNull()
+      .references(() => objects.id, { onDelete: "cascade" }),
+    dependsOnObjectId: text("depends_on_object_id")
+      .notNull()
+      .references(() => objects.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.objectId, table.dependsOnObjectId] }),
+    index("object_dependencies_depends_on_idx").on(table.dependsOnObjectId),
+  ],
 );

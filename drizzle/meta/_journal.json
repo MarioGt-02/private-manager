@@ -43,6 +43,13 @@
       "when": 1789564900054,
       "tag": "0005_boring_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790168236453,
+      "tag": "0006_faulty_meteorite",
+      "breakpoints": true
     }
   ]
 }

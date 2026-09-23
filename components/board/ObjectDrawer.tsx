@@ -6,6 +6,7 @@ import { ObjectAI } from "@/components/ai/ObjectAI";
 import { InlineEditableField } from "@/components/ui/InlineEditableField";
 import { WorkspaceDialog } from "@/components/ui/WorkspaceDialog";
 import { CategorySelect } from "@/components/categories/CategorySelect";
+import { DependenciesSection } from "@/components/dependencies/DependenciesSection";
 import { COLUMNS, type ManagedObject } from "@/lib/types/object";
 
 interface ObjectDrawerProps {
@@ -21,11 +22,12 @@ interface ObjectDrawerProps {
   onReorderChecklist: (objectId: string, parentId: string | null, ids: string[]) => Promise<void>;
   onApplyProgress: (objectId: string, update: unknown) => Promise<void>;
   onApplyReplan: (objectId: string, proposal: unknown) => Promise<void>;
+  onOpenObject: (objectId: string) => void;
 }
 export function ObjectDrawer(props: ObjectDrawerProps) {
   return props.object ? <DrawerContent key={props.object.id} {...props} object={props.object} /> : null;
 }
-function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject }: ObjectDrawerProps & { object: ManagedObject }) {
+function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject, onOpenObject }: ObjectDrawerProps & { object: ManagedObject }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lifecycleError, setLifecycleError] = useState("");
   const archived = !!object.archivedAt;
@@ -90,6 +92,7 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
           onDelete={(id) => manual(() => onDeleteChecklist(object.id, id))}
           onReorder={(parentId, ids) => manual(() => onReorderChecklist(object.id, parentId, ids))} />
       </section>
+      <DependenciesSection objectId={object.id} disabled={pending || archived} onOpenObject={onOpenObject} />
       <div hidden={archived} className="mt-4 border-t border-slate-200 pt-3">
         <ObjectAI object={object} disabled={pending} onPendingChange={setPending} onApplyProgress={onApplyProgress} onApplyReplan={onApplyReplan} />
       </div>

@@ -260,6 +260,10 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     if (!response.ok) throw new Error("Could not load archived Object.");
     const data = await response.json(); setHistoricalObject(data.object); setSelectedId(null);
   }
+  function openDependencyObject(id: string) {
+    if (objects.some((item) => item.id === id)) { setHistoricalObject(null); setSelectedId(id); }
+    else { void openArchivedObject(id).catch(() => {}); }
+  }
   async function handleLifecycle(id: string, action: LifecycleAction) {
     const response = await fetch(`/api/objects/${encodeURIComponent(id)}/lifecycle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(action === "cancel" ? { confirmed: true } : {}) }) });
     if (!response.ok) throw new Error("Could not save Object action.");
@@ -387,6 +391,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
         onApplyProgress={handleApplyProgress}
         onApplyReplan={handleApplyReplan}
         onLifecycle={handleLifecycle}
+        onOpenObject={openDependencyObject}
       />
 
       {cancelTarget && <CancelObjectDialog key={cancelTarget.id} object={cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={() => handleLifecycle(cancelTarget.id, "cancel")} />}

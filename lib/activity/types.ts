@@ -30,6 +30,8 @@ const labels: Record<string, string> = {
   checklist_reordered: "Checklist reordered",
   ai_progress_update: "AI Progress Update",
   ai_replan: "AI Replan",
+  dependency_added: "Dependency added",
+  dependency_removed: "Dependency removed",
 };
 export function activityLabel(type: string): string {
   return Object.hasOwn(labels, type) ? labels[type] : "Activity";
