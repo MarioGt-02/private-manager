@@ -30,7 +30,7 @@ import { parse } from "csv-parse/sync";
 
 beforeAll(async () => {
   pg = new PGlite(); db = drizzle(pg, { schema });
-  for (const file of ["0000_flaky_meggan", "0001_object_archive_metadata", "0002_object_category_presentation", "0003_silent_groot", "0004_keen_diamondback", "0005_boring_quicksilver", "0006_faulty_meteorite", "0007_clever_annihilus"]) await pg.exec(await readFile(`drizzle/${file}.sql`, "utf8"));
+  for (const file of ["0000_flaky_meggan", "0001_object_archive_metadata", "0002_object_category_presentation", "0003_silent_groot", "0004_keen_diamondback", "0005_boring_quicksilver", "0006_faulty_meteorite", "0007_clever_annihilus","0008_silky_slapstick"]) await pg.exec(await readFile(`drizzle/${file}.sql`, "utf8"));
 }, 30000);
 beforeEach(async () => { await pg.exec("TRUNCATE objects CASCADE"); mocks.auth.mockReset().mockResolvedValue({}); mocks.db.mockClear(); mocks.ai.mockClear(); });
 afterAll(async () => { await pg.close(); });
@@ -49,8 +49,10 @@ describe("Category persistence and auth", () => {
     expect(categoryInputSchema.safeParse({ name: "  ", color: "blue" }).success).toBe(false);
     expect(categoryInputSchema.safeParse({ name: "Test", color: "#123456" }).success).toBe(false);
     expect(categoryInputSchema.safeParse({ name: "Test", color: "blue", extra: true }).success).toBe(false);
+    expect(categoryInputSchema.safeParse({ name: "Test", color: "yellow" }).success).toBe(true);
     await expect(saveCategory({ name: "  TECH & SOFTWARE  ", color: "blue" })).rejects.toThrow();
     const custom = await saveCategory({ name: "  My category  ", color: "teal" }); expect(custom.name).toBe("My category");
+    expect(await saveCategory({ name: "Yellow category", color: "yellow" })).toMatchObject({ color: "yellow" });
     expect(await saveCategory({ name: "My renamed category", color: "brown" }, custom.id)).toMatchObject({ id: custom.id, name: "My renamed category", color: "brown" });
   });
   it("enforces foreign key; assignment, change and clear do not add Activity noise", async () => {
@@ -131,7 +133,7 @@ describe("Category presentation and exports", () => {
     expect(blue).toContain("Tech &amp; Software"); expect(blue).toContain(colorStyle("blue").accent); expect(blue).toContain("bg-white");
     expect(render(createElement(ObjectCardOverlay, { object: card }), "cyan")).toContain(colorStyle("cyan").accent);
     const neutral = render(createElement(ObjectCardOverlay, { object })); expect(neutral).not.toContain(tech.name); expect(neutral).toContain(colorStyle(null).accent);
-    const swatches = renderToStaticMarkup(createElement(CategoryColorPicker, { value: "blue", onChange: vi.fn() })); expect(swatches).toContain('aria-pressed="true"'); expect(swatches).toContain("✓"); expect(swatches).toContain('aria-label="blue"');
+    const swatches = renderToStaticMarkup(createElement(CategoryColorPicker, { value: "blue", onChange: vi.fn() })); expect(swatches).toContain('aria-pressed="true"'); expect(swatches).toContain("✓"); expect(swatches).toContain('aria-label="blue"'); expect(swatches).toContain('aria-label="yellow"');
     const archived = render(createElement(ArchivedRow, { object: { ...card, archivedAt: new Date().toISOString(), cancelledAt: new Date().toISOString() }, disabled: false, onOpen: vi.fn(), onRestore: vi.fn(), onDelete: vi.fn() }));
     expect(archived).toContain("Tech &amp; Software"); expect(archived).toContain(colorStyle("blue").accent); expect(archived).toContain("line-through"); expect(archived).toContain("Cancelled");
   });

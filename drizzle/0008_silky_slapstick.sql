@@ -1,0 +1,1 @@
+ALTER TYPE "public"."category_color" ADD VALUE 'yellow' BEFORE 'amber';

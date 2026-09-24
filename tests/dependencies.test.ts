@@ -19,7 +19,7 @@ import { addDependency, DependencyError, getDependencies, removeDependency, sear
 beforeAll(async () => {
   pg = new PGlite();
   db = drizzle(pg, { schema });
-  for (const migration of ["0000_flaky_meggan", "0001_object_archive_metadata", "0002_object_category_presentation", "0003_silent_groot", "0004_keen_diamondback", "0005_boring_quicksilver", "0006_faulty_meteorite", "0007_clever_annihilus"]) {
+  for (const migration of ["0000_flaky_meggan", "0001_object_archive_metadata", "0002_object_category_presentation", "0003_silent_groot", "0004_keen_diamondback", "0005_boring_quicksilver", "0006_faulty_meteorite", "0007_clever_annihilus","0008_silky_slapstick"]) {
     await pg.exec(await readFile(`drizzle/${migration}.sql`, "utf8"));
   }
 }, 30000);

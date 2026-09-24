@@ -5,6 +5,7 @@ export const CATEGORY_COLORS: Record<CategoryColor, { accent: string; tint: stri
   teal: { accent: "#0d9488", tint: "#f0fdfa", text: "#115e59" },
   green: { accent: "#16a34a", tint: "#f0fdf4", text: "#166534" },
   lime: { accent: "#65a30d", tint: "#f7fee7", text: "#3f6212" },
+  yellow: { accent: "#eab308", tint: "#fefce8", text: "#854d0e" },
   amber: { accent: "#d97706", tint: "#fffbeb", text: "#92400e" },
   orange: { accent: "#ea580c", tint: "#fff7ed", text: "#9a3412" },
   red: { accent: "#dc2626", tint: "#fef2f2", text: "#991b1b" },

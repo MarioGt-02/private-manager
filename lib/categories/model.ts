@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const COLOR_TOKENS = ["blue", "cyan", "teal", "green", "lime", "amber", "orange", "red", "rose", "violet", "indigo", "slate", "brown"] as const;
+export const COLOR_TOKENS = ["blue", "cyan", "teal", "green", "lime", "yellow", "amber", "orange", "red", "rose", "violet", "indigo", "slate", "brown"] as const;
 export type CategoryColor = (typeof COLOR_TOKENS)[number];
 export interface Category { id: string; name: string; color: CategoryColor; createdAt: string; }
 export const categoryInputSchema = z.object({ name: z.string().trim().min(1).max(80), color: z.enum(COLOR_TOKENS) }).strict();
