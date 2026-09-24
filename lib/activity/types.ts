@@ -37,6 +37,9 @@ const labels: Record<string, string> = {
   recurrence_disabled: "Recurrence stopped",
   recurrence_generated: "Next occurrence generated",
   occurrence_note_updated: "Occurrence note updated",
+  table_created: "Table created",
+  table_renamed: "Table renamed",
+  table_deleted: "Table deleted",
 };
 export function activityLabel(type: string): string {
   return Object.hasOwn(labels, type) ? labels[type] : "Activity";

@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, isNull, ne, getTableColumns } from "drizzle-
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
 import { categories, checklistItems, objectDependencies, objects, objectUpdates } from "./schema";
+import { copyTablesForRecurrence } from "./tables";
 import { InvalidCategoryError } from "@/lib/categories/suggestion";
 import type {
   ChecklistItem,
@@ -289,6 +290,10 @@ export async function generateNextOccurrence(tx: Tx, objectId: string): Promise<
     const nextActionItems: ChecklistItem[] = insertRows.map(({ id, parentId, title, completed, position }) => ({ id, parentId, title, completed, position }));
     await tx.update(objects).set({ nextAction: deriveNextAction(nextActionItems) }).where(eq(objects.id, nextId));
   }
+
+  // Object Tables are copied with explicit carry-forward semantics: only rows
+  // flagged for repeat exist again, and only flagged columns keep their value.
+  await copyTablesForRecurrence(tx, current.id, nextId);
 
   await tx.update(objects).set({ nextOccurrenceId: nextId }).where(eq(objects.id, current.id));
 

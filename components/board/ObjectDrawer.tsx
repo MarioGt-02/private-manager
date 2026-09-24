@@ -7,6 +7,7 @@ import { InlineEditableField } from "@/components/ui/InlineEditableField";
 import { WorkspaceDialog } from "@/components/ui/WorkspaceDialog";
 import { CategorySelect } from "@/components/categories/CategorySelect";
 import { DependenciesSection } from "@/components/dependencies/DependenciesSection";
+import { TablesSection } from "@/components/tables/TablesSection";
 import { RecurrenceControls, type RecurrenceFormInput } from "@/components/recurrence/RecurrenceControls";
 import { COLUMNS, type ManagedObject } from "@/lib/types/object";
 
@@ -26,11 +27,13 @@ interface ObjectDrawerProps {
   onOpenObject: (objectId: string) => void;
   onUpdateRecurrence: (objectId: string, config: RecurrenceFormInput | null) => Promise<void>;
   onUpdateNote: (objectId: string, note: string) => Promise<void>;
+  /** Refreshes the Drawer Activity list after a Table structural change. */
+  onRefreshActivity: (objectId: string) => void;
 }
 export function ObjectDrawer(props: ObjectDrawerProps) {
   return props.object ? <DrawerContent key={props.object.id} {...props} object={props.object} /> : null;
 }
-function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject, onOpenObject, onUpdateRecurrence, onUpdateNote }: ObjectDrawerProps & { object: ManagedObject }) {
+function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject, onOpenObject, onUpdateRecurrence, onUpdateNote, onRefreshActivity }: ObjectDrawerProps & { object: ManagedObject }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lifecycleError, setLifecycleError] = useState("");
   const archived = !!object.archivedAt;
@@ -98,6 +101,7 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
           onDelete={(id) => manual(() => onDeleteChecklist(object.id, id))}
           onReorder={(parentId, ids) => manual(() => onReorderChecklist(object.id, parentId, ids))} />
       </section>
+      <TablesSection objectId={object.id} recurring={!!object.recurrence} disabled={pending || archived} onActivityChange={() => onRefreshActivity(object.id)} />
       <DependenciesSection objectId={object.id} disabled={pending || archived} onOpenObject={onOpenObject} />
       <section aria-label="Recurring" className="mt-4 border-t border-slate-200 pt-3">
         <h3 className="section-label mb-1">Recurring</h3>

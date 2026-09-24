@@ -136,6 +136,114 @@ export const objectUpdates = pgTable(
 );
 
 /**
+ * Structured information belonging to one Object: maintenance items, materials,
+ * firmware results and similar records. Objects and Tables are 1:N so a future
+ * multi-table experience needs no schema change.
+ *
+ * `carryForward` on a row means "this row exists again in the next recurring
+ * occurrence"; on a column it means "this column's value is preserved for a
+ * carried-forward row". The flags are independent, default to false, and are
+ * never inferred from names.
+ */
+export const objectTables = pgTable(
+  "object_tables",
+  {
+    id: text("id").primaryKey(),
+    objectId: text("object_id")
+      .notNull()
+      .references(() => objects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("object_tables_object_id_idx").on(table.objectId, table.position)],
+);
+
+export const objectTableColumnTypeEnum = pgEnum("object_table_column_type", [
+  "text",
+  "number",
+  "date",
+  "currency",
+  "checkbox",
+]);
+
+export const objectTableColumns = pgTable(
+  "object_table_columns",
+  {
+    id: text("id").primaryKey(),
+    tableId: text("table_id")
+      .notNull()
+      .references(() => objectTables.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: objectTableColumnTypeEnum("type").notNull(),
+    /** Presentation only; never used for conversion or arithmetic. */
+    currency: text("currency"),
+    position: integer("position").notNull().default(0),
+    carryForward: boolean("carry_forward").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("object_table_columns_table_id_idx").on(table.tableId, table.position)],
+);
+
+export const objectTableRows = pgTable(
+  "object_table_rows",
+  {
+    id: text("id").primaryKey(),
+    tableId: text("table_id")
+      .notNull()
+      .references(() => objectTables.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    carryForward: boolean("carry_forward").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("object_table_rows_table_id_idx").on(table.tableId, table.position)],
+);
+
+/**
+ * One cell is a (row, column) pair holding a canonical text value. An empty
+ * value is stored as no row at all, so "no value" and "empty value" can never
+ * diverge. Deleting a row or a column removes the affected cells by cascade.
+ */
+export const objectTableCells = pgTable(
+  "object_table_cells",
+  {
+    id: text("id").primaryKey(),
+    rowId: text("row_id")
+      .notNull()
+      .references(() => objectTableRows.id, { onDelete: "cascade" }),
+    columnId: text("column_id")
+      .notNull()
+      .references(() => objectTableColumns.id, { onDelete: "cascade" }),
+    value: text("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("object_table_cells_row_column_idx").on(table.rowId, table.columnId),
+    index("object_table_cells_column_id_idx").on(table.columnId),
+  ],
+);
+
+/**
  * A single canonical dependency relationship: `objectId` depends on
  * `dependsOnObjectId`. The inverse ("Blocking") direction is derived from this
  * same table, never stored separately. The composite primary key enforces

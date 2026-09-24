@@ -428,6 +428,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
         onOpenObject={openDependencyObject}
         onUpdateRecurrence={handleUpdateRecurrence}
         onUpdateNote={handleUpdateNote}
+        onRefreshActivity={refreshActivity}
       />
 
       {cancelTarget && <CancelObjectDialog key={cancelTarget.id} object={cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={() => handleLifecycle(cancelTarget.id, "cancel")} />}
