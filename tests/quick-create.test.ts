@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "@/lib/db/schema";
-import { quickCreateRequestSchema, quickCreateResponseSchema } from "@/lib/ai/schemas";
+import { normalizeLegacyDraft, quickCreateRequestSchema, quickCreateResponseSchema } from "@/lib/ai/schemas";
 
 let pg: PGlite;
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -46,6 +46,13 @@ describe("Quick Create schemas", () => {
     expect(quickCreateResponseSchema.safeParse({ ...validDraft, checklist: [{ title: "P", children: [{ title: "C" }] }] }).success).toBe(true);
     expect(quickCreateResponseSchema.safeParse({ ...validDraft, checklist: [] }).success).toBe(true); // empty checklist is schema-valid; finalize rejects it
     expect(quickCreateResponseSchema.safeParse({ title: "only" }).success).toBe(false);
+  });
+
+  it("normalizes legacy string checklist items and string children", () => {
+    const normalized = normalizeLegacyDraft({ ...validDraft, checklist: [{ title: "P", children: ["c1", "c2"] }] });
+    const result = quickCreateResponseSchema.safeParse(normalized);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.checklist[0].children).toEqual([{ title: "c1", completed: false }, { title: "c2", completed: false }]);
   });
 });
 

@@ -105,16 +105,25 @@ export function normalizeLegacyChatResponse(value: unknown): unknown {
   };
 }
 
-/** Compatibility for Quick Create when the provider returns a legacy flat string array checklist. */
+/** Compatibility for Quick Create when the provider returns legacy string checklist items or string children. */
 export function normalizeLegacyDraft(value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value;
   const draft = value as Record<string, unknown>;
   if (!Array.isArray(draft.checklist)) return value;
-  if (!draft.checklist.every((item) => typeof item === "string")) return value;
-  return {
-    ...draft,
-    checklist: draft.checklist.map((title) => ({ title, completed: false, children: [] })),
-  };
+
+  const checklist = draft.checklist.map((item) => {
+    if (typeof item === "string") return { title: item, completed: false, children: [] };
+    if (typeof item === "object" && item !== null) {
+      const record = item as Record<string, unknown>;
+      const children = Array.isArray(record.children)
+        ? record.children.map((child) => (typeof child === "string" ? { title: child, completed: false } : child))
+        : (record.children ?? []);
+      return { ...record, children };
+    }
+    return item;
+  });
+
+  return { ...draft, checklist };
 }
 
 const finalizeChildSchema = z.object({
