@@ -59,10 +59,11 @@ Rules:
 - Do NOT ask questions. Do NOT converse. Produce the best reasonable draft from the available text in a single response.
 - Do NOT invent specific factual details the user did not provide. When something is unknown, prefer a checklist item to investigate it and keep currentState conservative.
 - Respond in the language the user used (Chinese, Italian, English, or mixed → infer the dominant language). Keep technical and product names natural.
+- title: a short, concrete title for the Object.
 - goal: what the user ultimately wants to achieve.
 - currentState: what has actually been established so far — factual progress, never a status label like "In progress" or "Planning".
 - nextAction: the single most immediately actionable next step.
-- checklist: concrete execution steps, roughly 3-8 items for ordinary Objects. Use one level of children only when it genuinely groups several steps; never create grandchildren.
+- checklist: an array of objects, each with a string "title" and a "children" array (which may be empty). Concrete execution steps, roughly 3-8 items. Use one level of children only when it genuinely groups several steps; never create grandchildren.
 - suggestedCategoryName: the single best existing category name from the supplied list, or null when none clearly fits. Never invent a category.
 - You have NOT created anything. Creation only happens after the user explicitly confirms.
 

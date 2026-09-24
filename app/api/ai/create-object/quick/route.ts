@@ -4,7 +4,7 @@ import { getOpenAIClient } from "@/lib/ai/openai";
 import { getCategoryOptions } from "@/lib/db/categories";
 import { resolveCategorySuggestion } from "@/lib/categories/suggestion";
 import { CREATE_OBJECT_MODEL, OPENAI_REASONING_EFFORT, OPENAI_STORE, QUICK_CREATE_SYSTEM_PROMPT } from "@/lib/ai/prompts";
-import { quickCreateRequestSchema, quickCreateResponseSchema } from "@/lib/ai/schemas";
+import { normalizeLegacyDraft, quickCreateRequestSchema, quickCreateResponseSchema } from "@/lib/ai/schemas";
 import { classifyAIError, errorResponse, statusForCode } from "@/lib/errors/server";
 import { newRequestId, toValidationIssues } from "@/lib/errors/serialize";
 import { ERROR_MESSAGES } from "@/lib/errors/types";
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     let json: unknown;
     try { json = JSON.parse(content); } catch { return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "Provider output was not valid JSON." } }); }
 
-    const result = quickCreateResponseSchema.safeParse(json);
+    const result = quickCreateResponseSchema.safeParse(normalizeLegacyDraft(json));
     if (!result.success) {
       return errorResponse({ code: "AI_SCHEMA_VALIDATION_ERROR", message: ERROR_MESSAGES.AI_SCHEMA_VALIDATION_ERROR, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { validationIssues: toValidationIssues(result.error.issues) } });
     }
