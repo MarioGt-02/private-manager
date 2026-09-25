@@ -76,6 +76,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ obj
       model: CREATE_OBJECT_MODEL,
       reasoning: { effort: OPENAI_REASONING_EFFORT },
       store: OPENAI_STORE,
+      max_output_tokens: 8192,
       instructions: PROGRESS_SYSTEM_PROMPT,
       input: [
         { role: "system", content: PROGRESS_SYSTEM_PROMPT },

@@ -71,6 +71,7 @@ export async function POST(request: Request) {
       model: CREATE_OBJECT_MODEL,
       reasoning: { effort: OPENAI_REASONING_EFFORT },
       store: OPENAI_STORE,
+      max_output_tokens: 8192,
       instructions: QUICK_CREATE_SYSTEM_PROMPT,
       input: [
         { role: "system", content: QUICK_CREATE_SYSTEM_PROMPT },
