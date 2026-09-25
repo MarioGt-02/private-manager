@@ -218,6 +218,7 @@ describe("Structured draft schemas", () => {
     expect(finalizeRecurrenceSchema.safeParse({ frequency: "yearly", interval: 1, basis: "scheduled_date", nextDate: null }).success).toBe(false);
     expect(finalizeRecurrenceSchema.safeParse({ frequency: "yearly", interval: 1, basis: "scheduled_date", nextDate: "2027-03-31" }).success).toBe(true);
     expect(finalizeRecurrenceSchema.safeParse({ frequency: "yearly", interval: 1, basis: "completion_date", nextDate: null }).success).toBe(true);
+    expect(finalizeRecurrenceSchema.safeParse({ frequency: "yearly", interval: 1, basis: "completion_date" }).success).toBe(true);
   });
 
   it("rejects a fabricated or invalid scheduled date", () => {

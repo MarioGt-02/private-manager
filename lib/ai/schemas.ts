@@ -223,7 +223,7 @@ export const finalizeRecurrenceSchema = z
     frequency: z.enum(["daily", "weekly", "monthly", "yearly"]),
     interval: z.number().int().min(1).max(100),
     basis: z.enum(["scheduled_date", "completion_date"]),
-    nextDate: z.string().trim().nullable(),
+    nextDate: z.string().trim().nullable().optional(),
   })
   .superRefine((recurrence, ctx) => {
     if (recurrence.basis === "scheduled_date") {
@@ -363,5 +363,5 @@ export function normalizeDraftTable(table: z.infer<typeof draftTableSchema>): Dr
 
 /** Convert an already-validated finalize recurrence into a RecurrenceFormInput. */
 export function toRecurrenceFormInput(recurrence: z.infer<typeof finalizeRecurrenceSchema>): RecurrenceFormInput {
-  return { frequency: recurrence.frequency, interval: recurrence.interval, basis: recurrence.basis, nextDate: recurrence.nextDate };
+  return { frequency: recurrence.frequency, interval: recurrence.interval, basis: recurrence.basis, nextDate: recurrence.nextDate ?? null };
 }
