@@ -22,6 +22,8 @@ import {
 } from "@/lib/errors/server";
 import { newRequestId, toValidationIssues } from "@/lib/errors/serialize";
 import { ERROR_MESSAGES } from "@/lib/errors/types";
+import { redactString, truncate } from "@/lib/errors/redact";
+import { extractJSON } from "@/lib/ai/parse-json";
 
 export const runtime = "nodejs";
 
@@ -198,11 +200,9 @@ export async function POST(request: Request) {
       return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "Provider returned empty output text." } });
     }
 
-    let json: unknown;
-    try {
-      json = JSON.parse(content);
-    } catch {
-      return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "Provider output was not valid JSON." } });
+    const json = extractJSON(content);
+    if (json === undefined) {
+      return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: `Provider output was not valid JSON. Raw output (sanitized): ${truncate(redactString(content), 300)}` } });
     }
 
     const normalizedJson = normalizeLegacyChatResponse(json);
