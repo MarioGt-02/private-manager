@@ -2,14 +2,13 @@
 import { useRef, useState } from "react";
 import {
   CARRY_FORWARD_HINTS,
-  CURRENCY_CODES,
   COLUMN_TYPE_LABELS,
-  TABLE_COLUMN_TYPES,
   cellDisplayValue,
   type ObjectTableView,
   type TableColumnType,
   type TableColumnView,
 } from "@/lib/tables/model";
+import { ColumnMenu, type ColumnMenuProps } from "./ColumnMenu";
 
 export interface TableGridProps {
   table: ObjectTableView;
@@ -70,69 +69,28 @@ function EditableCell({ column, value, label, disabled, onCommit }: {
   />;
 }
 
-/** Column header with an always-available, native menu of column operations. */
-function ColumnHeader({ column, index, count, disabled, recurring, onUpdate, onMove, onDelete }: {
-  column: TableColumnView;
-  index: number;
-  count: number;
-  disabled: boolean;
-  recurring: boolean;
-  onUpdate: (columnId: string, patch: { name?: string; type?: TableColumnType; currency?: string | null; carryForward?: boolean }) => void;
-  onMove: (columnId: string, direction: -1 | 1) => void;
-  onDelete: (columnId: string) => void;
-}) {
-  const [name, setName] = useState(column.name);
-  function rename() {
-    const next = name.trim();
-    if (next && next !== column.name) onUpdate(column.id, { name: next });
-  }
+/** Column header: name, type summary and the compact column menu trigger. */
+function ColumnHeader(props: ColumnMenuProps) {
+  const { column, recurring } = props;
   return <th scope="col" className="min-w-[9rem] border-b border-slate-200 px-2 py-1.5 text-left align-bottom">
-    <span className="block truncate text-xs font-semibold text-slate-700" title={column.name}>{column.name}</span>
-    <span className="mt-0.5 block text-[10px] font-normal uppercase tracking-wide text-slate-400">
-      {COLUMN_TYPE_LABELS[column.type]}{column.type === "currency" && column.currency ? ` · ${column.currency}` : ""}
-      {recurring && column.carryForward ? " · ↻" : ""}
-    </span>
-    <details className="mt-1">
-      <summary aria-label={`Column options: ${column.name}`} className="cursor-pointer text-[10px] font-medium text-slate-500 hover:text-slate-700">Options</summary>
-      <div className="mt-1 w-52 space-y-1.5 rounded-lg border border-slate-200 bg-white p-2 font-normal normal-case">
-        <label className="block text-[11px] text-slate-500">Name
-          <input aria-label={`Rename ${column.name}`} className="input mt-0.5 px-1.5 py-1 text-xs" value={name} maxLength={60} disabled={disabled}
-            onChange={(event) => setName(event.target.value)}
-            onBlur={rename}
-            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); rename(); } }} />
-        </label>
-        <label className="block text-[11px] text-slate-500">Type
-          <select aria-label={`Type of ${column.name}`} className="input mt-0.5 px-1.5 py-1 text-xs" value={column.type} disabled={disabled}
-            onChange={(event) => { const type = event.target.value as TableColumnType; onUpdate(column.id, { type, ...(type === "currency" ? { currency: column.currency ?? CURRENCY_CODES[0] } : {}) }); }}>
-            {TABLE_COLUMN_TYPES.map((type) => <option key={type} value={type}>{COLUMN_TYPE_LABELS[type]}</option>)}
-          </select>
-        </label>
-        {column.type === "currency" && <label className="block text-[11px] text-slate-500">Currency
-          <select aria-label={`Currency of ${column.name}`} className="input mt-0.5 px-1.5 py-1 text-xs" value={column.currency ?? ""} disabled={disabled}
-            onChange={(event) => onUpdate(column.id, { currency: event.target.value || null })}>
-            <option value="">None</option>
-            {CURRENCY_CODES.map((code) => <option key={code} value={code}>{code}</option>)}
-          </select>
-        </label>}
-        {recurring && <label className="flex items-start gap-1.5 text-[11px] text-slate-600" title={CARRY_FORWARD_HINTS.column}>
-          <input type="checkbox" aria-label={CARRY_FORWARD_HINTS.column} checked={column.carryForward} disabled={disabled}
-            onChange={(event) => onUpdate(column.id, { carryForward: event.target.checked })} />
-          Keep values forward
-        </label>}
-        <div className="flex items-center gap-1 pt-0.5">
-          <button type="button" className="btn-tertiary" aria-label={`Move ${column.name} left`} disabled={disabled || index === 0} onClick={() => onMove(column.id, -1)}>←</button>
-          <button type="button" className="btn-tertiary" aria-label={`Move ${column.name} right`} disabled={disabled || index === count - 1} onClick={() => onMove(column.id, 1)}>→</button>
-          <button type="button" className="btn-danger ml-auto" aria-label={`Delete column ${column.name}`} disabled={disabled} onClick={() => onDelete(column.id)}>Delete</button>
-        </div>
-      </div>
-    </details>
+    <div className="flex items-start justify-between gap-1">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-semibold text-slate-700" title={column.name}>{column.name}</span>
+        <span className="mt-0.5 block text-[10px] font-normal uppercase tracking-wide text-slate-400">
+          {COLUMN_TYPE_LABELS[column.type]}{column.type === "currency" && column.currency ? ` · ${column.currency}` : ""}
+          {recurring && column.carryForward ? " · ↻" : ""}
+        </span>
+      </span>
+      <ColumnMenu {...props} />
+    </div>
   </th>;
 }
 
+
 /**
- * Lightweight record grid. Wide tables scroll horizontally instead of being
- * squeezed, so a Drawer can show a 7-column maintenance table and remain usable
- * on a narrow screen.
+ * Lightweight record grid. Wide tables scroll horizontally inside their own
+ * viewport instead of being squeezed, so the Object workspace can show a
+ * 7-column maintenance table and remain usable.
  */
 export function TableGrid({ table, disabled, recurring, onCells, onAddRow, onAddColumn, onDeleteRow, onMoveRow, onRowCarryForward, onUpdateColumn, onMoveColumn, onDeleteColumn }: TableGridProps) {
   const columns = table.columns;
@@ -159,10 +117,10 @@ export function TableGrid({ table, disabled, recurring, onCells, onAddRow, onAdd
             })}
             <td className="border-b border-slate-100 px-1 py-0.5">
               <div className="flex items-center gap-0.5">
-                {recurring && <label className="px-0.5 text-slate-500" title={CARRY_FORWARD_HINTS.row}>
-                  <input type="checkbox" aria-label={`${CARRY_FORWARD_HINTS.row}: row ${rowIndex + 1}`} checked={row.carryForward} disabled={disabled}
-                    onChange={(event) => onRowCarryForward(row.id, event.target.checked)} />
-                </label>}
+                {recurring && <button type="button" role="switch" aria-checked={row.carryForward}
+                  aria-label={`${CARRY_FORWARD_HINTS.row}: row ${rowIndex + 1}`} title={CARRY_FORWARD_HINTS.row} disabled={disabled}
+                  onClick={() => onRowCarryForward(row.id, !row.carryForward)}
+                  className={`rounded p-0.5 text-sm leading-none disabled:opacity-30 ${row.carryForward ? "text-blue-600 hover:bg-blue-50" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}>↻</button>}
                 <button type="button" aria-label={`Move row ${rowIndex + 1} up`} disabled={disabled || rowIndex === 0} onClick={() => onMoveRow(row.id, -1)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30">↑</button>
                 <button type="button" aria-label={`Move row ${rowIndex + 1} down`} disabled={disabled || rowIndex === table.rows.length - 1} onClick={() => onMoveRow(row.id, 1)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30">↓</button>
                 <button type="button" aria-label={`Delete row ${rowIndex + 1}`} disabled={disabled} onClick={() => onDeleteRow(row.id)} className="rounded p-0.5 text-slate-400 hover:text-red-600 disabled:opacity-30">×</button>

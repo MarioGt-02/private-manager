@@ -2,8 +2,8 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /** Native modal supplies focus containment, inert background and focus restoration. */
-export function WorkspaceDialog({ children, label, onClose, busy = false, compact = false, closeOnBackdrop = true }: {
-  children: ReactNode; label: string; onClose: () => void; busy?: boolean; compact?: boolean; closeOnBackdrop?: boolean;
+export function WorkspaceDialog({ children, label, onClose, busy = false, compact = false, closeOnBackdrop = true, size = "drawer" }: {
+  children: ReactNode; label: string; onClose: () => void; busy?: boolean; compact?: boolean; closeOnBackdrop?: boolean; size?: "drawer" | "workspace";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const downOnBackdrop = useRef(false);
@@ -18,8 +18,8 @@ export function WorkspaceDialog({ children, label, onClose, busy = false, compac
     const box = dialog.getBoundingClientRect();
     return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
   }
-  return <dialog ref={ref} aria-label={label} aria-busy={busy} className="workspace-dialog" data-compact={compact || undefined}
-    onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}
+  return <dialog ref={ref} aria-label={label} aria-busy={busy} className="workspace-dialog" data-compact={compact || undefined} data-size={size === "workspace" ? "workspace" : undefined}
+    onCancel={(event) => { event.preventDefault(); if (!busy && !ref.current?.querySelector("[data-popover]")) onClose(); }}
     onMouseDown={(event) => { downOnBackdrop.current = closeOnBackdrop && event.target === event.currentTarget && isBackdrop(event); }}
     onClick={(event) => {
       if (!closeOnBackdrop || busy) return;

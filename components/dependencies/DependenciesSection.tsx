@@ -134,8 +134,10 @@ export function DependenciesSection({ objectId, disabled, onOpenObject }: { obje
 
       {deps && (
         <>
-          <DepGroup label="Blocked by" entries={deps.blockedBy} onOpen={onOpenObject} onRemove={disabled ? undefined : remove} />
-          <DepGroup label="Blocking" entries={deps.blocking} onOpen={onOpenObject} />
+          <div className="lg:grid lg:grid-cols-2 lg:gap-x-6">
+            <DepGroup label="Blocked by" entries={deps.blockedBy} onOpen={onOpenObject} onRemove={disabled ? undefined : remove} />
+            <DepGroup label="Blocking" entries={deps.blocking} onOpen={onOpenObject} />
+          </div>
           {!deps.blockedBy.length && !deps.blocking.length && !loading && <p className="py-1 text-sm text-slate-400">No dependencies yet.</p>}
         </>
       )}

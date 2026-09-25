@@ -25,6 +25,7 @@ import { parseCellValue, TABLE_LIMITS, type ObjectTableView, type TableColumnTyp
 type ColumnInput = { name: string; type: TableColumnType; currency?: string | null; carryForward?: boolean };
 
 import { TableGrid } from "@/components/tables/TableGrid";
+import { ColumnMenuPanel } from "@/components/tables/ColumnMenu";
 import { ObjectDrawer } from "@/components/board/ObjectDrawer";
 import { GET as listTables, POST as createTableRoute } from "@/app/api/objects/[objectId]/tables/route";
 import { DELETE as deleteTableRoute, PATCH as tableRoute } from "@/app/api/objects/[objectId]/tables/[tableId]/route";
@@ -777,21 +778,54 @@ describe("Object Tables UI", () => {
     expect(markup).toContain('placeholder="EUR"');
     expect(markup).toContain('type="checkbox"');
     expect(markup).toContain("checked");
-    // The column menu offers every column operation.
+    // The trigger lives in the header; its panel is not part of the table at all.
     expect(markup).toContain('aria-label="Column options: Maintenance Item"');
-    expect(markup).toContain('aria-label="Delete column Notes"');
-    expect(markup).toContain('aria-label="Move Cost left"');
-    expect(markup).toContain("Currency");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).not.toContain("Move left");
+  });
+
+  it("keeps every column operation available in the floating column menu", () => {
+    const column = tableView().columns[1];
+    const panel = renderToStaticMarkup(createElement(ColumnMenuPanel, {
+      column, index: 1, count: 4, disabled: false, recurring: true,
+      onUpdate: noop, onMove: noop, onDelete: noop, onClose: noop,
+    }));
+    for (const text of ["Rename", "Type", "Currency", "Keep values forward", "Move left", "Move right", "Delete column"]) expect(panel).toContain(text);
+    for (const label of ["Rename Cost", "Type of Cost", "Currency of Cost", "Move Cost left", "Move Cost right", "Delete column Cost"]) {
+      expect(panel).toContain(`aria-label="${label}"`);
+    }
+    // The column carry-forward flag keeps its explicit, discoverable label.
+    expect(panel).toContain("Keep this column&#x27;s value in the next occurrence");
+    // Rendered as a floating layer so it cannot expand the table.
+    expect(panel).toContain('role="dialog"');
+    expect(panel).toContain("z-50");
+    expect(panel).toContain("fixed");
+  });
+
+  it("only exposes the destructive column action behind a confirmation step", () => {
+    const column = tableView().columns[0];
+    const panel = renderToStaticMarkup(createElement(ColumnMenuPanel, {
+      column, index: 0, count: 4, disabled: false, recurring: false,
+      onUpdate: noop, onMove: noop, onDelete: noop, onClose: noop,
+    }));
+    expect(panel).toContain('aria-label="Delete column Maintenance Item"');
+    // The menu itself never deletes: it opens a confirm step first.
+    expect(panel).not.toContain("Confirm delete column");
+    // Boundary moves are disabled for the first column.
+    expect(panel).toContain('aria-label="Move Maintenance Item left"');
+    expect(panel).toContain("disabled");
   });
 
   it("shows carry-forward controls only for a recurring Object", () => {
     const recurring = renderToStaticMarkup(createElement(TableGrid, { ...gridProps, table: tableView() }));
-    expect(recurring).toContain("Repeat this row in the next occurrence");
-    expect(recurring).toContain("Keep this column&#x27;s value in the next occurrence");
+    // A compact switch with an explicit accessible label and a visible explanation.
+    expect(recurring).toContain('role="switch"');
+    expect(recurring).toContain('aria-label="Repeat this row in the next occurrence: row 1"');
+    expect(recurring).toContain('title="Repeat this row in the next occurrence"');
 
     const plain = renderToStaticMarkup(createElement(TableGrid, { ...gridProps, recurring: false, table: tableView() }));
-    expect(plain).not.toContain("Repeat this row in the next occurrence");
     expect(plain).not.toContain("next occurrence");
+    expect(plain).not.toContain('role="switch"');
     // Row management stays available, because it is not recurrence specific.
     expect(plain).toContain('aria-label="Delete row 1"');
   });

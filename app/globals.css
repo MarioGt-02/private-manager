@@ -28,3 +28,13 @@ textarea { resize: vertical; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 
 .workspace-dialog[data-compact="true"] { inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); height: fit-content; max-height: 90dvh; border: 1px solid #e2e8f0; border-radius: 12px; overflow-y: auto; }
+
+/* Object Workspace V2: a wider right-side workspace for Object detail.
+   The base 640px rule above still applies to the other dialogs, so only the
+   Object workspace opts in by attribute.
+   IMPORTANT: do NOT add transform, filter, perspective, will-change or
+   contain to this selector. The Table column menu is positioned with
+   position: fixed so it can escape the table's overflow-x-auto clipping;
+   any of those properties would turn this dialog into its containing block
+   and break the menu placement. */
+.workspace-dialog[data-size="workspace"] { width: min(1180px, 94vw); }

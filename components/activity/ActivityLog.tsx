@@ -8,14 +8,17 @@ type ActivityState =
   | { status: "error" }
   | { status: "ready"; updates: ActivityUpdate[] };
 
-export function ActivityContent({ state, onRetry }: { state: ActivityState; onRetry: () => void }) {
+export type ActivityVariant = "flow" | "panel";
+
+/** `flow` keeps the bounded history list used in the main column; `panel` fills the workspace sidebar. */
+export function ActivityContent({ state, onRetry, variant = "flow" }: { state: ActivityState; onRetry: () => void; variant?: ActivityVariant }) {
   if (state.status === "loading") return <p role="status" className="text-sm text-slate-500">Loading activity…</p>;
   if (state.status === "error") return <div role="alert" className="text-sm text-slate-600">
     <p>Could not load activity.</p>
     <button type="button" onClick={onRetry} className="mt-2 rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50">Retry</button>
   </div>;
   if (!state.updates.length) return <p className="text-sm text-slate-500">No activity yet.</p>;
-  return <ol aria-label="Recent activity" className="max-h-96 space-y-3 overflow-y-auto overscroll-contain pr-2">
+  return <ol aria-label="Recent activity" className={variant === "panel" ? "space-y-3 pr-1" : "max-h-96 space-y-3 overflow-y-auto overscroll-contain pr-2"}>
     {state.updates.map((update) => <li key={update.id} className="min-w-0 border-l-2 border-slate-200 pl-3 text-sm">
       <time dateTime={update.createdAt} className="text-xs text-slate-500">
         {new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" }).format(new Date(update.createdAt))}
@@ -26,7 +29,7 @@ export function ActivityContent({ state, onRetry }: { state: ActivityState; onRe
   </ol>;
 }
 
-function ActivityRequest({ objectId, onRetry }: { objectId: string; onRetry: () => void }) {
+function ActivityRequest({ objectId, onRetry, variant }: { objectId: string; onRetry: () => void; variant?: ActivityVariant }) {
   const [state, setState] = useState<ActivityState>({ status: "loading" });
   useEffect(() => {
     const controller = new AbortController();
@@ -45,13 +48,13 @@ function ActivityRequest({ objectId, onRetry }: { objectId: string; onRetry: () 
     void load();
     return () => { active = false; controller.abort(); };
   }, [objectId]);
-  return <ActivityContent state={state} onRetry={onRetry} />;
+  return <ActivityContent state={state} onRetry={onRetry} variant={variant} />;
 }
 
-export function ActivityLog({ objectId, version }: { objectId: string; version: number }) {
+export function ActivityLog({ objectId, version, variant = "flow" }: { objectId: string; version: number; variant?: ActivityVariant }) {
   const [attempt, setAttempt] = useState(0);
-  return <section aria-label="Activity" className="mt-6 border-t border-slate-200 pt-5">
+  return <section aria-label="Activity" className={variant === "panel" ? "" : "mt-6 border-t border-slate-200 pt-5"}>
     <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Activity</h3>
-    <ActivityRequest key={`${objectId}:${version}:${attempt}`} objectId={objectId} onRetry={() => setAttempt((value) => value + 1)} />
+    <ActivityRequest key={`${objectId}:${version}:${attempt}`} objectId={objectId} variant={variant} onRetry={() => setAttempt((value) => value + 1)} />
   </section>;
 }
