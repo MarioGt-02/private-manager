@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WorkspaceDialog } from "@/components/ui/WorkspaceDialog";
 import type {
   AIConversationMessage,
@@ -37,6 +37,10 @@ export function AICreateDialog({
   const [error, setError] = useState<ErrorDetail | null>(null);
 
   const requestLock = useRef(false);
+  const confirmResetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (confirmReset) confirmResetRef.current?.scrollIntoView({ block: "start" });
+  }, [confirmReset]);
   if (!open) return null;
 
   function reset() {
@@ -157,7 +161,7 @@ export function AICreateDialog({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
-          {confirmReset && <div className="mb-4 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+          {confirmReset && <div ref={confirmResetRef} className="mb-4 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
             <p>开始新对话会清除当前对话、草稿和未发送文字。</p>
             <div className="flex gap-2">
               <button type="button" className="btn-danger" disabled={isSending || isCreating} onClick={reset}>清空并开始</button>
