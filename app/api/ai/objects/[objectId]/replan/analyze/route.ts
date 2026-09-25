@@ -83,6 +83,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ obj
       model: CREATE_OBJECT_MODEL,
       reasoning: { effort: OPENAI_REASONING_EFFORT },
       store: OPENAI_STORE,
+      instructions: REPLAN_PROMPT,
       input: [
         { role: "system", content: REPLAN_PROMPT },
         { role: "user", content: JSON.stringify({ object: { ...object, checklist: buildChecklistTree(object.checklist) }, recentUpdates, change: input.data.message }) },

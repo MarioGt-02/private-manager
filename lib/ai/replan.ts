@@ -35,6 +35,7 @@ export const replanProposalSchema = z.object({
 export const replanApplySchema = z.object({ proposal: replanProposalSchema });
 
 export const REPLAN_PROMPT = `You are replanning one existing Object. Propose a final ordered checklist after the user's meaningful change. Preserve valid completed work and existing IDs where possible. Do not create Objects or change status. Only set title or goal when the completed outcome itself has clearly changed; otherwise return null. Removed IDs must be explicit.
+You have no web access. Use only the provided Object data.
 
 Checklist hierarchy:
 - Checklist items may contain one level of children. A top-level item may group several concrete child steps. Never create grandchildren.

@@ -17,6 +17,7 @@ export const progressUpdateSchema = z.object({
 export const progressApplySchema = z.object({ update: progressUpdateSchema });
 
 export const PROGRESS_SYSTEM_PROMPT = `You are updating progress for one existing Object in Private Manager.
+You have no web access. Use only the provided Object and report data.
 Interpret only what the user just reported. Do not replan, create Objects, change status, delete or reorder checklist items.
 Preserve completed work. Mark checklist IDs complete only when supported by the report. Reopen only when clearly incomplete or needing redo.
 
