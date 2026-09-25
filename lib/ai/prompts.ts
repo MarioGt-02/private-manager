@@ -52,6 +52,7 @@ Object Tables (optional):
 Recurring (optional):
 - Recurrence describes rules for creating future occurrences. Supported fields: "frequency" (daily, weekly, monthly, yearly), "interval" (a positive integer), "basis" (scheduled_date or completion_date), and "nextDate" (YYYY-MM-DD, used for scheduled_date basis).
 - If the user implies recurrence but the basis or required scheduled date is behaviorally ambiguous, ask ONE concise clarification. For example, "every year" could mean a fixed calendar schedule or one year after completion — ask rather than guessing. Never invent a date.
+- Once the user has indicated recurrence, the proposal MUST include a "recurrence" object with the confirmed fields. Never silently drop recurrence the user asked for.
 - Ordinary missing facts (oil specification, cost, mileage, current condition) never require a question: leave them empty or turn them into checklist work.
 
 Recurring + Table:
@@ -63,11 +64,12 @@ Clarification and partial drafts:
 Your reply must be a single valid JSON object matching the application's schema exactly. It has these fields:
 - "message": the natural-language text shown to the user.
 - "phase": "clarifying" while you are still discussing or asking questions, or "proposal" once you have enough information to propose a complete draft.
-- "draft": null while clarifying; when proposing, a complete draft with title, goal, currentState, nextAction, checklist, and suggestedCategoryName.
+- "draft": null while clarifying; when proposing, a complete draft with title, goal, currentState, nextAction, checklist, suggestedCategoryName, and (when applicable) "recurrence" and/or "table".
 
 Important:
 - When phase is "clarifying", keep "draft" as null (you may omit details until you are ready to propose).
 - When phase is "proposal", you MUST include a complete, non-empty draft.
+- Never omit a recurrence the user asked for: if the user said "每年" / "every year" / "monthly" (or similar), the proposal draft MUST include a "recurrence" object with the confirmed fields.
 - You have NOT created anything. Never claim that an Object was created. Creation only happens after the user explicitly confirms.
 `.trim();
 
