@@ -191,6 +191,7 @@ export async function POST(request: Request) {
       model: CREATE_OBJECT_MODEL,
       reasoning: { effort: OPENAI_REASONING_EFFORT },
       store: OPENAI_STORE,
+      instructions: CREATE_OBJECT_SYSTEM_PROMPT,
       input: openaiMessages,
       text: { format: chatResponseFormat },
     });
