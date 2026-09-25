@@ -79,4 +79,29 @@ describe("AI chat response schema", () => {
   it("leaves a non-draft object unchanged", () => {
     expect(normalizeLegacyChatResponse({ unrelated: true })).toEqual({ unrelated: true });
   });
+
+  it("normalizes string children into objects", () => {
+    const normalized = normalizeLegacyChatResponse({
+      message: "Ready.",
+      phase: "proposal",
+      draft: {
+        title: "Repair NAS",
+        goal: "Restore the NAS",
+        currentState: "Investigating",
+        nextAction: "Check logs",
+        checklist: [{ title: "Check power", children: ["Confirm adapter", "Check cable"] }],
+      },
+    });
+
+    expect(chatResponseSchema.parse(normalized).draft?.checklist).toEqual([
+      {
+        title: "Check power",
+        completed: false,
+        children: [
+          { title: "Confirm adapter", completed: false },
+          { title: "Check cable", completed: false },
+        ],
+      },
+    ]);
+  });
 });

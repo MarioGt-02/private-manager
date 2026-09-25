@@ -127,7 +127,7 @@ export const quickCreateResponseSchema = z.object({
  * return legacy shapes:
  *   1. A flat draft (title/goal/currentState/nextAction/checklist) without the
  *      message/phase/draft wrapper — treated as a proposal.
- *   2. A string-array checklist instead of object items.
+ *   2. String checklist items or string children instead of objects.
  */
 export function normalizeLegacyChatResponse(value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value;
@@ -146,15 +146,30 @@ export function normalizeLegacyChatResponse(value: unknown): unknown {
   if (typeof draft !== "object" || draft === null) return value;
   const draftRecord = draft as Record<string, unknown>;
   if (!Array.isArray(draftRecord.checklist)) return value;
-  if (!draftRecord.checklist.every((item) => typeof item === "string")) return value;
 
   return {
     ...response,
     draft: {
       ...draftRecord,
-      checklist: draftRecord.checklist.map((title) => ({ title, completed: false, children: [] })),
+      checklist: draftRecord.checklist.map(normalizeChecklistItem),
     },
   };
+}
+
+function normalizeChecklistChild(child: unknown): unknown {
+  return typeof child === "string" ? { title: child, completed: false } : child;
+}
+
+function normalizeChecklistItem(item: unknown): unknown {
+  if (typeof item === "string") return { title: item, completed: false, children: [] };
+  if (typeof item === "object" && item !== null) {
+    const record = item as Record<string, unknown>;
+    const children = Array.isArray(record.children)
+      ? record.children.map(normalizeChecklistChild)
+      : (record.children ?? []);
+    return { ...record, children };
+  }
+  return item;
 }
 
 /** Wrap a flat draft (no message/phase/draft wrapper) into the chat shape. */
@@ -177,9 +192,7 @@ function extractFlatDraft(response: Record<string, unknown>): Record<string, unk
     currentState: response.currentState,
     nextAction: response.nextAction,
     suggestedCategoryName: response.suggestedCategoryName ?? null,
-    checklist: response.checklist.map((item) =>
-      typeof item === "string" ? { title: item, completed: false, children: [] } : item,
-    ),
+    checklist: response.checklist.map(normalizeChecklistItem),
     recurrence: response.recurrence ?? null,
     table: response.table ?? null,
   };
