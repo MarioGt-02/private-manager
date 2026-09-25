@@ -1,5 +1,7 @@
 import { z } from "zod";
-import type { CreateObjectDraft } from "./types";
+import { columnTypeSchema, currencyCodeSchema, parseCellValue, TABLE_LIMITS } from "@/lib/tables/model";
+import type { RecurrenceFormInput } from "@/lib/types/object";
+import type { CreateObjectDraft, DraftTable } from "./types";
 
 const aiMessageRoleSchema = z.enum(["user", "assistant"]);
 
@@ -21,6 +23,39 @@ export const draftChecklistItemSchema = z.object({
   children: z.array(draftChecklistChildSchema).default([]),
 });
 
+/**
+ * Draft-layer recurrence. Every field is optional so the AI may hold partially
+ * known recurrence (e.g. yearly/interval while basis or date is unresolved)
+ * during clarification without discarding what it already knows.
+ */
+export const draftRecurrenceSchema = z.object({
+  frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).optional(),
+  interval: z.number().int().min(1).max(100).optional(),
+  basis: z.enum(["scheduled_date", "completion_date"]).optional(),
+  nextDate: z.string().nullable().optional(),
+});
+
+/** Draft table column (structure only; strict limits are enforced at finalize). */
+export const draftTableColumnSchema = z.object({
+  name: z.string(),
+  type: columnTypeSchema,
+  currency: z.string().nullable().optional(),
+  carryForward: z.boolean().optional(),
+});
+
+/** Draft table row; `cells[i]` corresponds to `columns[i]`, "" (or null from AI) is empty. */
+export const draftTableRowSchema = z.object({
+  carryForward: z.boolean().optional(),
+  cells: z.array(z.string().nullable()),
+});
+
+/** A single draft table. V1 supports at most one per Object. */
+export const draftTableSchema = z.object({
+  title: z.string(),
+  columns: z.array(draftTableColumnSchema),
+  rows: z.array(draftTableRowSchema),
+});
+
 /** Editable client draft. Category IDs are user selections, never model output. */
 export const createObjectDraftSchema = z.object({
   categoryId: z.string().min(1).max(200).nullable().default(null),
@@ -29,6 +64,8 @@ export const createObjectDraftSchema = z.object({
   currentState: z.string(),
   nextAction: z.string(),
   checklist: z.array(draftChecklistItemSchema),
+  recurrence: draftRecurrenceSchema.nullable().default(null),
+  table: draftTableSchema.nullable().default(null),
 });
 
 export const chatRequestSchema = z
@@ -66,6 +103,8 @@ export const chatResponseSchema = z.object({
       nextAction: z.string(),
       suggestedCategoryName: z.string().nullable().default(null),
       checklist: z.array(chatDraftChecklistItemSchema),
+      recurrence: draftRecurrenceSchema.nullable().default(null),
+      table: draftTableSchema.nullable().default(null),
     })
     .nullable(),
 });
@@ -137,6 +176,58 @@ const finalizeChecklistItemSchema = z.object({
   children: z.array(finalizeChildSchema).max(10).default([]),
 });
 
+/** Complete, valid recurrence for persistence. */
+export const finalizeRecurrenceSchema = z
+  .object({
+    frequency: z.enum(["daily", "weekly", "monthly", "yearly"]),
+    interval: z.number().int().min(1).max(100),
+    basis: z.enum(["scheduled_date", "completion_date"]),
+    nextDate: z.string().trim().nullable(),
+  })
+  .superRefine((recurrence, ctx) => {
+    if (recurrence.basis === "scheduled_date") {
+      if (!recurrence.nextDate) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nextDate"], message: "A scheduled date is required for scheduled-date recurrence." });
+      } else if (parseCellValue("date", recurrence.nextDate).status === "invalid") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["nextDate"], message: "Enter a real date as YYYY-MM-DD." });
+      }
+    }
+  });
+
+const finalizeTableColumnSchema = z.object({
+  name: z.string().trim().min(1).max(TABLE_LIMITS.columnName),
+  type: columnTypeSchema,
+  currency: currencyCodeSchema.nullable(),
+  carryForward: z.boolean(),
+});
+
+const finalizeTableRowSchema = z.object({
+  carryForward: z.boolean(),
+  cells: z.array(z.string().max(TABLE_LIMITS.cellValue)),
+});
+
+/** Strict, authoritative table validation: limits, alignment and cell semantics. */
+export const finalizeTableSchema = z
+  .object({
+    title: z.string().trim().min(1).max(TABLE_LIMITS.tableTitle),
+    columns: z.array(finalizeTableColumnSchema).min(1).max(TABLE_LIMITS.columnsPerTable),
+    rows: z.array(finalizeTableRowSchema).max(TABLE_LIMITS.rowsPerTable),
+  })
+  .superRefine((table, ctx) => {
+    table.rows.forEach((row, rowIndex) => {
+      if (row.cells.length !== table.columns.length) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rows", rowIndex, "cells"], message: "Cell count must match column count." });
+        return;
+      }
+      row.cells.forEach((cell, columnIndex) => {
+        const parsed = parseCellValue(table.columns[columnIndex].type, cell);
+        if (parsed.status === "invalid") {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["rows", rowIndex, "cells", columnIndex], message: parsed.message });
+        }
+      });
+    });
+  });
+
 export const finalizeDraftSchema = z
   .object({
     categoryId: z.string().min(1).max(200).nullable().default(null),
@@ -145,6 +236,8 @@ export const finalizeDraftSchema = z
     currentState: z.string().max(1000),
     nextAction: z.string().max(500),
     checklist: z.array(finalizeChecklistItemSchema).max(20),
+    recurrence: finalizeRecurrenceSchema.nullable().default(null),
+    table: finalizeTableSchema.nullable().default(null),
   })
   .superRefine((draft, ctx) => {
     const total = draft.checklist.reduce(
@@ -208,4 +301,26 @@ export function normalizeDraft(draft: CreateObjectDraft): NormalizedDraft | null
   }
 
   return { title, goal, currentState, nextAction, checklist };
+}
+
+/** Trim and canonicalise an AI/client table draft: null cells become "", flags become booleans. */
+export function normalizeDraftTable(table: z.infer<typeof draftTableSchema>): DraftTable {
+  return {
+    title: table.title.trim(),
+    columns: table.columns.map((column) => ({
+      name: column.name.trim(),
+      type: column.type,
+      currency: column.currency ?? null,
+      carryForward: !!column.carryForward,
+    })),
+    rows: table.rows.map((row) => ({
+      carryForward: !!row.carryForward,
+      cells: row.cells.map((cell) => (cell ?? "").trim()),
+    })),
+  };
+}
+
+/** Convert an already-validated finalize recurrence into a RecurrenceFormInput. */
+export function toRecurrenceFormInput(recurrence: z.infer<typeof finalizeRecurrenceSchema>): RecurrenceFormInput {
+  return { frequency: recurrence.frequency, interval: recurrence.interval, basis: recurrence.basis, nextDate: recurrence.nextDate };
 }

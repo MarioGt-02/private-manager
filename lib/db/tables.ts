@@ -507,3 +507,62 @@ export async function copyTablesForRecurrence(tx: Tx, sourceObjectId: string, ta
     ),
   );
 }
+
+/**
+ * Insert a complete table structure (columns, rows and cells) inside the
+ * caller's transaction, using the same `parseCellValue` rules as the rest of
+ * Object Tables. Empty cells are stored as no cell row at all. Logs one
+ * table_created event.
+ */
+export async function insertTableStructureInTx(
+  tx: Tx,
+  objectId: string,
+  structure: {
+    title: string;
+    columns: { name: string; type: TableColumnType; currency: string | null; carryForward: boolean }[];
+    rows: { carryForward: boolean; cells: string[] }[];
+  },
+): Promise<void> {
+  if (structure.columns.length > TABLE_LIMITS.columnsPerTable) throw new TableError("COLUMNS_LIMIT_REACHED");
+  if (structure.rows.length > TABLE_LIMITS.rowsPerTable) throw new TableError("ROWS_LIMIT_REACHED");
+
+  const tableId = randomUUID();
+  await tx.insert(objectTables).values({ id: tableId, objectId, title: structure.title, position: 0 });
+
+  const columnRecords = structure.columns.map((column, position) => ({
+    id: randomUUID(),
+    tableId,
+    position,
+    name: column.name,
+    type: column.type,
+    currency: column.type === "currency" ? column.currency ?? null : null,
+    carryForward: column.carryForward,
+  }));
+  await tx.insert(objectTableColumns).values(columnRecords);
+
+  const rowRecords: { id: string; tableId: string; position: number; carryForward: boolean }[] = [];
+  const cellRecords: { id: string; rowId: string; columnId: string; value: string }[] = [];
+  structure.rows.forEach((row, rowPosition) => {
+    const rowId = randomUUID();
+    rowRecords.push({ id: rowId, tableId, position: rowPosition, carryForward: row.carryForward });
+    row.cells.forEach((raw, columnIndex) => {
+      const column = structure.columns[columnIndex];
+      if (!column) throw new TableError("INVALID_CELL_VALUE");
+      const parsed = parseCellValue(column.type, raw);
+      if (parsed.status === "invalid") throw new TableError("INVALID_CELL_VALUE");
+      if (parsed.status === "ok") {
+        cellRecords.push({ id: randomUUID(), rowId, columnId: columnRecords[columnIndex].id, value: parsed.value });
+      }
+    });
+  });
+  await tx.insert(objectTableRows).values(rowRecords);
+  if (cellRecords.length) await tx.insert(objectTableCells).values(cellRecords);
+
+  await tx.insert(objectUpdates).values({
+    id: randomUUID(),
+    objectId,
+    type: "table_created",
+    content: `Created table "${structure.title}".`,
+  });
+}
+

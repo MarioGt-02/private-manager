@@ -10,6 +10,7 @@ import type { ManagedObject } from "@/lib/types/object";
 import type { CategoryOption } from "@/lib/categories/suggestion";
 import { AICreateConversation } from "./AICreateConversation";
 import { ObjectDraftPreview } from "./ObjectDraftPreview";
+import { mergeChatDraft } from "@/lib/ai/draft";
 import { ErrorDetails } from "@/components/ui/ErrorDetails";
 import { localError, parseErrorDetail } from "@/lib/errors/client";
 import type { ErrorDetail } from "@/lib/errors/types";
@@ -88,8 +89,8 @@ export function AICreateDialog({
         setPhase("proposal");
       } else {
         setPhase("conversation");
-        // Preserve the existing draft unless the AI returned a newer one.
-        if (data.draft) setDraft(data.draft);
+        // Preserve the partial draft across clarifying turns (recurrence basis/date).
+        setDraft((prev) => mergeChatDraft(prev, data.draft ?? null));
       }
     } catch {
       setError(localError("Could not reach AI. Your conversation and draft are still here."));

@@ -1,20 +1,9 @@
 "use client";
 import { useState } from "react";
-import type { RecurrenceBasis, RecurrenceConfig, RecurrenceFrequency } from "@/lib/types/object";
+import { RecurrenceForm, FREQUENCIES } from "./RecurrenceForm";
+import type { RecurrenceBasis, RecurrenceConfig, RecurrenceFormInput, RecurrenceFrequency } from "@/lib/types/object";
 
-const FREQUENCIES: { value: RecurrenceFrequency; label: string }[] = [
-  { value: "daily", label: "Day" },
-  { value: "weekly", label: "Week" },
-  { value: "monthly", label: "Month" },
-  { value: "yearly", label: "Year" },
-];
-
-export interface RecurrenceFormInput {
-  frequency: RecurrenceFrequency;
-  interval: number;
-  basis: RecurrenceBasis;
-  nextDate: string | null;
-}
+export type { RecurrenceFormInput };
 
 export function RecurrenceControls({ config, disabled, onSave }: { config: RecurrenceConfig | null; disabled: boolean; onSave: (config: RecurrenceFormInput | null) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
@@ -72,20 +61,11 @@ export function RecurrenceControls({ config, disabled, onSave }: { config: Recur
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-slate-600">Every</span>
-        <input type="number" min={1} max={100} value={interval} disabled={disabled || busy} onChange={(event) => setInterval(Number(event.target.value))} className="input w-20" aria-label="Interval" />
-        <select value={frequency} disabled={disabled || busy} onChange={(event) => setFrequency(event.target.value as RecurrenceFrequency)} className="input" aria-label="Frequency">
-          {FREQUENCIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-        </select>
-      </div>
-      <div className="space-y-1 text-sm">
-        <label className="flex items-center gap-2"><input type="radio" name="recurrence-basis" checked={basis === "scheduled_date"} onChange={() => setBasis("scheduled_date")} disabled={disabled || busy} /> Scheduled date</label>
-        <label className="flex items-center gap-2"><input type="radio" name="recurrence-basis" checked={basis === "completion_date"} onChange={() => setBasis("completion_date")} disabled={disabled || busy} /> Completion date</label>
-      </div>
-      {basis === "scheduled_date" && (
-        <label className="block text-sm"><span className="text-slate-600">Next occurrence</span><input type="date" value={nextDate} disabled={disabled || busy} onChange={(event) => setNextDate(event.target.value)} className="input mt-1" /></label>
-      )}
+      <RecurrenceForm
+        value={{ frequency, interval, basis, nextDate: nextDate || null }}
+        disabled={disabled || busy}
+        onChange={(next) => { setFrequency(next.frequency); setInterval(next.interval); setBasis(next.basis); setNextDate(next.nextDate ?? ""); }}
+      />
       {error && <p role="alert" className="error-note">{error}</p>}
       <div className="flex gap-2">
         <button type="button" className="btn-primary" disabled={disabled || busy} onClick={() => void save()}>Save</button>
@@ -94,3 +74,4 @@ export function RecurrenceControls({ config, disabled, onSave }: { config: Recur
     </div>
   );
 }
+

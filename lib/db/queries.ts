@@ -149,10 +149,15 @@ export interface CreateObjectInput {
   activityContent?: string;
 }
 
-export async function createObject(
+/**
+ * Insert an Object, its checklist and the object_created activity inside an
+ * existing transaction. Shared by `createObject` and the AI structured-create
+ * path so the complete creation stays atomic. Returns the new Object id.
+ */
+export async function insertObjectWithChecklist(
+  tx: Tx,
   input: CreateObjectInput,
-): Promise<ManagedObject> {
-  const db = getDb();
+): Promise<string> {
   const id = randomUUID();
   const {
     categoryId = null,
@@ -165,44 +170,53 @@ export async function createObject(
     activityContent = "Object created.",
   } = input;
 
-  await db.transaction(async (tx) => {
-    if (categoryId !== null) {
-      const [category] = await tx.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId)).for("share");
-      if (!category) throw new InvalidCategoryError();
-    }
-    const last = await tx
-      .select({ position: objects.position })
-      .from(objects)
-      .where(and(eq(objects.status, status), isNull(objects.archivedAt)))
-      .orderBy(desc(objects.position))
-      .limit(1);
-    await tx
-      .insert(objects)
-      .values({ id, title, goal, currentState, nextAction, status, categoryId, position: (last[0]?.position ?? -1) + 1 });
+  if (categoryId !== null) {
+    const [category] = await tx.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId)).for("share");
+    if (!category) throw new InvalidCategoryError();
+  }
+  const last = await tx
+    .select({ position: objects.position })
+    .from(objects)
+    .where(and(eq(objects.status, status), isNull(objects.archivedAt)))
+    .orderBy(desc(objects.position))
+    .limit(1);
+  await tx
+    .insert(objects)
+    .values({ id, title, goal, currentState, nextAction, status, categoryId, position: (last[0]?.position ?? -1) + 1 });
 
-    if (checklist.length > 0) {
-      const rows: { id: string; objectId: string; parentId: string | null; title: string; completed: boolean; position: number }[] = [];
-      for (const [ti, item] of checklist.entries()) {
-        const parentId = randomUUID();
-        rows.push({ id: parentId, objectId: id, parentId: null, title: item.title, completed: item.completed, position: ti });
-        for (const [ci, child] of (item.children ?? []).entries()) {
-          rows.push({ id: randomUUID(), objectId: id, parentId, title: child.title, completed: child.completed, position: ci });
-        }
+  if (checklist.length > 0) {
+    const rows: { id: string; objectId: string; parentId: string | null; title: string; completed: boolean; position: number }[] = [];
+    for (const [ti, item] of checklist.entries()) {
+      const parentId = randomUUID();
+      rows.push({ id: parentId, objectId: id, parentId: null, title: item.title, completed: item.completed, position: ti });
+      for (const [ci, child] of (item.children ?? []).entries()) {
+        rows.push({ id: randomUUID(), objectId: id, parentId, title: child.title, completed: child.completed, position: ci });
       }
-      await tx.insert(checklistItems).values(rows);
-      await syncParentCompletion(tx, id);
-      const all = await tx.select().from(checklistItems).where(eq(checklistItems.objectId, id));
-      await tx.update(objects).set({ nextAction: deriveNextAction(all), updatedAt: new Date() }).where(eq(objects.id, id));
     }
+    await tx.insert(checklistItems).values(rows);
+    await syncParentCompletion(tx, id);
+    const all = await tx.select().from(checklistItems).where(eq(checklistItems.objectId, id));
+    await tx.update(objects).set({ nextAction: deriveNextAction(all), updatedAt: new Date() }).where(eq(objects.id, id));
+  }
 
-    await tx.insert(objectUpdates).values({
-      id: randomUUID(),
-      objectId: id,
-      type: "object_created",
-      content: activityContent,
-    });
+  await tx.insert(objectUpdates).values({
+    id: randomUUID(),
+    objectId: id,
+    type: "object_created",
+    content: activityContent,
   });
 
+  return id;
+}
+
+export async function createObject(
+  input: CreateObjectInput,
+): Promise<ManagedObject> {
+  const db = getDb();
+  let id = "";
+  await db.transaction(async (tx) => {
+    id = await insertObjectWithChecklist(tx, input);
+  });
   const created = await getObject(id);
   if (!created) throw new Error("Failed to load the created object.");
   return created;

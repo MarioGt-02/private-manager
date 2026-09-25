@@ -3,6 +3,9 @@
 import type { ReactNode } from "react";
 import type { CreateObjectDraft, DraftChecklistItem } from "@/lib/ai/types";
 import type { CategoryOption } from "@/lib/categories/suggestion";
+import { formInputToDraftRecurrence, recurrenceToFormInput } from "@/lib/ai/draft";
+import { DraftRecurrenceEditor } from "./DraftRecurrenceEditor";
+import { DraftTableEditor } from "./DraftTableEditor";
 
 interface ObjectDraftPreviewProps {
   categories?: CategoryOption[];
@@ -69,9 +72,14 @@ export function ObjectDraftPreview({
     );
   }
 
+  const recurrenceInput = recurrenceToFormInput(draft.recurrence);
+  const recurrenceIncomplete = !!draft.recurrence && !recurrenceInput;
+  const recurrenceValid = !draft.recurrence || (!!recurrenceInput && (recurrenceInput.basis !== "scheduled_date" || !!recurrenceInput.nextDate));
+
   const canCreate =
     [draft.title, draft.goal, draft.currentState, draft.nextAction].every((value) => value.trim()) &&
-    draft.checklist.some((item) => item.title.trim());
+    draft.checklist.some((item) => item.title.trim()) &&
+    recurrenceValid;
 
   return (
     <fieldset disabled={isCreating} className="flex min-w-0 flex-col gap-5">
@@ -102,6 +110,33 @@ export function ObjectDraftPreview({
 
       <Field label="Next Action">
         <input maxLength={500} value={draft.nextAction} onChange={(event) => updateField("nextAction", event.target.value)} className={inputClass} />
+      </Field>
+
+      <Field label="Recurring">
+        {recurrenceIncomplete ? (
+          <p className="text-sm text-slate-500">Recurrence needs clarification (basis or scheduled date).</p>
+        ) : (
+          <DraftRecurrenceEditor
+            value={recurrenceInput}
+            disabled={isCreating}
+            onChange={(value) => updateField("recurrence", formInputToDraftRecurrence(value))}
+          />
+        )}
+      </Field>
+
+      <Field label="Table">
+        {draft.table ? (
+          <DraftTableEditor
+            table={draft.table}
+            recurring={!!draft.recurrence}
+            disabled={isCreating}
+            onChange={(table) => updateField("table", table)}
+            onRemove={() => updateField("table", null)}
+          />
+        ) : (
+          <button type="button" className="btn-tertiary" disabled={isCreating}
+            onClick={() => updateField("table", { title: "", columns: [{ name: "Item", type: "text", currency: null, carryForward: false }], rows: [] })}>+ Add table</button>
+        )}
       </Field>
 
       <div>

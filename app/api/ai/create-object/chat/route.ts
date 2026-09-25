@@ -12,6 +12,7 @@ import {
 import {
   chatRequestSchema,
   chatResponseSchema,
+  normalizeDraftTable,
   normalizeLegacyChatResponse,
 } from "@/lib/ai/schemas";
 import {
@@ -58,6 +59,40 @@ const chatResponseFormat = {
                   children: { type: "array", items: { type: "object", additionalProperties: false, required: ["title"], properties: { title: { type: "string" } } } },
                 },
               } },
+              recurrence: { anyOf: [{ type: "null" }, {
+                type: "object", additionalProperties: false,
+                properties: {
+                  frequency: { type: "string", enum: ["daily", "weekly", "monthly", "yearly"] },
+                  interval: { type: "integer", minimum: 1, maximum: 100 },
+                  basis: { type: "string", enum: ["scheduled_date", "completion_date"] },
+                  nextDate: { type: ["string", "null"] },
+                },
+              }] },
+              table: { anyOf: [{ type: "null" }, {
+                type: "object", additionalProperties: false,
+                required: ["title", "columns", "rows"],
+                properties: {
+                  title: { type: "string" },
+                  columns: { type: "array", items: {
+                    type: "object", additionalProperties: false,
+                    required: ["name", "type"],
+                    properties: {
+                      name: { type: "string" },
+                      type: { type: "string", enum: ["text", "number", "date", "currency", "checkbox"] },
+                      currency: { type: ["string", "null"] },
+                      carryForward: { type: "boolean" },
+                    },
+                  } },
+                  rows: { type: "array", items: {
+                    type: "object", additionalProperties: false,
+                    required: ["carryForward", "cells"],
+                    properties: {
+                      carryForward: { type: "boolean" },
+                      cells: { type: "array", items: { type: ["string", "null"] } },
+                    },
+                  } },
+                },
+              }] },
             },
           },
         ],
@@ -127,6 +162,8 @@ export async function POST(request: Request) {
     currentState: currentDraft.currentState, nextAction: currentDraft.nextAction,
     checklist: currentDraft.checklist,
     suggestedCategoryName: categories.find((category) => category.id === currentDraft.categoryId)?.name ?? null,
+    recurrence: currentDraft.recurrence ?? null,
+    table: currentDraft.table ?? null,
   } : null;
 
   const openaiMessages = [
@@ -189,7 +226,7 @@ export async function POST(request: Request) {
 
     const draft = result.data.draft;
     const resolvedDraft = draft ? (() => {
-      const { suggestedCategoryName, checklist, ...fields } = draft;
+      const { suggestedCategoryName, checklist, recurrence, table, ...fields } = draft;
       return {
         ...fields,
         categoryId: resolveCategorySuggestion(suggestedCategoryName, categories)?.id ?? null,
@@ -198,6 +235,8 @@ export async function POST(request: Request) {
           completed: item.completed,
           children: (item.children ?? []).map((child) => ({ title: child.title, completed: child.completed })),
         })),
+        recurrence: recurrence ?? null,
+        table: table ? normalizeDraftTable(table) : null,
       };
     })() : null;
     return NextResponse.json({ ...result.data, draft: resolvedDraft, categories });

@@ -30,6 +30,18 @@ export interface RecurrenceConfig {
   nextOccurrenceId: string | null;
 }
 
+/**
+ * The editable recurrence fields, independent of any persisted identity/nav
+ * state (seriesId / previousOccurrenceId / nextOccurrenceId). Used by both the
+ * persisted RecurrenceControls and the AI Structured Draft editor.
+ */
+export interface RecurrenceFormInput {
+  frequency: RecurrenceFrequency;
+  interval: number;
+  basis: RecurrenceBasis;
+  nextDate: string | null;
+}
+
 export interface ManagedObject {
   id: string;
   title: string;

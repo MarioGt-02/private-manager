@@ -1,4 +1,5 @@
-import type { ManagedObject } from "@/lib/types/object";
+import type { ManagedObject, RecurrenceBasis, RecurrenceFrequency } from "@/lib/types/object";
+import type { TableColumnType } from "@/lib/tables/model";
 
 /**
  * Client-safe AI types shared between the browser (AI Create UI) and the
@@ -25,6 +26,40 @@ export interface DraftChecklistItem {
   children: DraftChecklistChild[];
 }
 
+/**
+ * Draft-layer recurrence. Unlike RecurrenceFormInput, every field is optional
+ * so the AI may propose partially known recurrence during clarification
+ * (for example "yearly / every 1" while basis or scheduled date is still
+ * unresolved) without discarding what it already knows.
+ */
+export interface DraftRecurrence {
+  frequency?: RecurrenceFrequency | null;
+  interval?: number | null;
+  basis?: RecurrenceBasis | null;
+  nextDate?: string | null;
+}
+
+/** A draft table column. `carryForward` means "keep this column's value next occurrence". */
+export interface DraftTableColumn {
+  name: string;
+  type: TableColumnType;
+  currency: string | null;
+  carryForward: boolean;
+}
+
+/** A draft table row. `cells[i]` always corresponds to `columns[i]`; "" means empty. */
+export interface DraftTableRow {
+  carryForward: boolean;
+  cells: string[];
+}
+
+/** A single AI-proposed table. V1 allows at most one per draft. */
+export interface DraftTable {
+  title: string;
+  columns: DraftTableColumn[];
+  rows: DraftTableRow[];
+}
+
 export interface CreateObjectDraft {
   categoryId?: string | null;
   title: string;
@@ -32,6 +67,9 @@ export interface CreateObjectDraft {
   currentState: string;
   nextAction: string;
   checklist: DraftChecklistItem[];
+  /** May be incomplete while clarifying; complete and valid before finalize. */
+  recurrence?: DraftRecurrence | null;
+  table?: DraftTable | null;
 }
 
 export type CreateObjectPhase = "clarifying" | "proposal";

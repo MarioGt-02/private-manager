@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth, UnauthorizedError } from "@/lib/auth/require-auth";
-import { finalizeRequestSchema, normalizeDraft } from "@/lib/ai/schemas";
-import { createObject } from "@/lib/db/queries";
+import { finalizeRequestSchema, normalizeDraft, normalizeDraftTable, toRecurrenceFormInput } from "@/lib/ai/schemas";
+import { createStructuredObject } from "@/lib/db/structured-create";
 import { InvalidCategoryError } from "@/lib/categories/suggestion";
 import { errorResponse } from "@/lib/errors/server";
 import { newRequestId, toValidationIssues } from "@/lib/errors/serialize";
@@ -60,14 +60,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const object = await createObject({
+    const object = await createStructuredObject({
       categoryId: parsed.data.draft.categoryId,
       title: normalized.title,
       goal: normalized.goal,
       currentState: normalized.currentState,
       nextAction: normalized.nextAction,
-      status: "idea",
       checklist: normalized.checklist,
+      recurrence: parsed.data.draft.recurrence ? toRecurrenceFormInput(parsed.data.draft.recurrence) : null,
+      table: parsed.data.draft.table ? normalizeDraftTable(parsed.data.draft.table) : null,
       activityContent: "Object created with AI assistance.",
     });
 
