@@ -309,7 +309,7 @@ export async function generateNextOccurrence(tx: Tx, objectId: string): Promise<
   // flagged for repeat exist again, and only flagged columns keep their value.
   await copyTablesForRecurrence(tx, current.id, nextId);
 
-  await tx.update(objects).set({ nextOccurrenceId: nextId }).where(eq(objects.id, current.id));
+  await tx.update(objects).set({ nextOccurrenceId: nextId, recurrenceNextDate: nextDate }).where(eq(objects.id, current.id));
 
   await tx.insert(objectUpdates).values({ id: randomUUID(), objectId: current.id, type: "recurrence_generated", content: `Generated next occurrence for ${nextDate}` });
   await tx.insert(objectUpdates).values({ id: randomUUID(), objectId: nextId, type: "object_created", content: `Created from recurring Object: ${current.title}` });

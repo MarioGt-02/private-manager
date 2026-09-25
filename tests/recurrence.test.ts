@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "@/lib/db/schema";
-import { addInterval } from "@/lib/recurrence/calc";
+import { addInterval, today } from "@/lib/recurrence/calc";
 
 let pg: PGlite;
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -121,6 +121,19 @@ describe("Recurring Objects", () => {
     const next = (await getObjects()).find((o) => o.id !== a.id)!;
     const expected = addInterval(new Date().toISOString().slice(0, 10), "monthly", 1);
     expect(next.recurrence?.nextDate).toBe(expected);
+  });
+
+  it("stores the next occurrence date on the completed occurrence", async () => {
+    const scheduled = await make("Bollo");
+    await updateObjectRecurrence(scheduled.id, { frequency: "yearly", interval: 1, basis: "scheduled_date", nextDate: "2026-10-31" });
+    await updateObjectStatus(scheduled.id, "done");
+    expect((await getObject(scheduled.id))!.recurrence?.nextDate).toBe("2027-10-31");
+
+    const completion = await make("Car wash");
+    await updateObjectRecurrence(completion.id, { frequency: "monthly", interval: 1, basis: "completion_date", nextDate: null });
+    await updateObjectStatus(completion.id, "done");
+    const expected = addInterval(today(), "monthly", 1);
+    expect((await getObject(completion.id))!.recurrence?.nextDate).toBe(expected);
   });
 
   it("does not copy dependencies to the next occurrence", async () => {

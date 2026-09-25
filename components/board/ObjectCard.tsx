@@ -78,6 +78,7 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
         </div>
         <span className="text-xs font-medium tabular-nums text-slate-600">{completed} / {total}</span>
       </div> : <p className="mt-2 text-[11px] text-slate-400">No checklist</p>}
+      {object.recurrence?.nextDate ? <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-slate-500"><span aria-hidden="true">↻</span><span>Next {object.recurrence.nextDate}</span></p> : null}
     </>}
   </>;
 }

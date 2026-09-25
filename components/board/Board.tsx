@@ -11,6 +11,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { deriveNextAction, withDerivedCompletion } from "@/lib/objects/next-action";
+import { addInterval, today } from "@/lib/recurrence/calc";
 import { COLUMNS, isStatus } from "@/lib/types/object";
 import type { ManagedObject, RecurrenceConfig } from "@/lib/types/object";
 import type { RecurrenceFormInput } from "@/components/recurrence/RecurrenceControls";
@@ -50,6 +51,18 @@ interface BoardProps {
 export function Board({ initialObjects, initialError = null }: BoardProps) {
   return <CategoryProvider><BoardContent initialObjects={initialObjects} initialError={initialError} /></CategoryProvider>;
 }
+
+function applyDoneRecurrence(objects: ManagedObject[], objectId: string, newStatus: ObjectStatus, previous: ManagedObject[]): ManagedObject[] {
+  if (newStatus !== "done") return objects;
+  const previousObject = previous.find((o) => o.id === objectId);
+  if (!previousObject || previousObject.status === "done") return objects;
+  const moved = objects.find((o) => o.id === objectId);
+  if (!moved?.recurrence || moved.recurrence.nextOccurrenceId) return objects;
+  const base = moved.recurrence.basis === "completion_date" ? today() : (moved.recurrence.nextDate ?? today());
+  const nextDate = addInterval(base, moved.recurrence.frequency, moved.recurrence.interval);
+  return objects.map((o) => o.id === objectId ? { ...o, recurrence: { ...o.recurrence!, nextDate } } : o);
+}
+
 function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [managingCategories, setManagingCategories] = useState(false);
   const [activityVersions, setActivityVersions] = useState<Record<string, number>>({});
@@ -156,7 +169,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     const currentTargetIds = objects.filter((object) => object.status === newStatus).map((object) => object.id);
     if (currentTargetIds.length === reordered.orderedObjectIds.length && currentTargetIds.every((id, index) => id === reordered.orderedObjectIds[index])) return;
 
-    setObjects(reordered.objects);
+    setObjects(applyDoneRecurrence(reordered.objects, objectId, newStatus, objects));
     setError(null);
 
     try {
