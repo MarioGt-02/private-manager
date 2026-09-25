@@ -22,6 +22,7 @@ vi.mock("@/lib/actions/object-actions", () => ({
 import { ObjectDrawer } from "@/components/board/ObjectDrawer";
 import { Board } from "@/components/board/Board";
 import { TableGrid } from "@/components/tables/TableGrid";
+import { ColumnMenuPanel } from "@/components/tables/ColumnMenu";
 import type { ManagedObject } from "@/lib/types/object";
 import type { ObjectTableView } from "@/lib/tables/model";
 
@@ -189,12 +190,36 @@ describe("Object Workspace sidebar and scrolling", () => {
 });
 
 describe("Object Workspace table presentation", () => {
-  it("keeps the table scrollable inside its own viewport", () => {
+  it("fills the available width and only scrolls when the column minimums cannot fit", () => {
     const markup = renderToStaticMarkup(createElement(TableGrid, gridProps));
     expect(markup).toContain("overflow-x-auto");
-    expect(markup).toContain("min-w-[560px]");
+    // The table prefers 100% width instead of a fixed minimum.
+    expect(markup).toContain('class="w-full border-collapse text-sm"');
+    expect(markup).not.toContain("min-w-[560px]");
+    // Per-type minimums decide when horizontal scrolling becomes necessary.
+    expect(markup).toContain("min-w-[9rem]");   // text
+    expect(markup).toContain("min-w-[7rem]");   // currency
+    expect(markup).toContain("min-w-[4rem]");   // checkbox
+    expect(markup).toContain("min-w-[5.5rem]"); // row actions
     // Only the grid viewport scrolls horizontally; the workspace never does.
     expect(markup.split("overflow-x-auto").length - 1).toBe(1);
+  });
+
+  it("keeps the type label in the column menu, not in the table header", () => {
+    const markup = renderToStaticMarkup(createElement(TableGrid, gridProps));
+    const head = markup.slice(markup.indexOf("<thead"), markup.indexOf("</thead>"));
+    // Column headers no longer carry a permanent TEXT / CHECKBOX / CURRENCY label.
+    for (const label of ["Text", "Checkbox", "Currency"]) expect(head).not.toContain(label);
+    // The compact repeat marker stays, because it is not a type label.
+    expect(head).toContain("↻");
+    // The type is available where the column is configured.
+    const panel = renderToStaticMarkup(createElement(ColumnMenuPanel, {
+      column: table.columns[2], index: 2, count: 3, disabled: false, recurring: true,
+      onUpdate: noop, onMove: noop, onDelete: noop, onClose: noop,
+    }));
+    expect(panel).toContain("费用");
+    expect(panel).toContain("Currency");
+    expect(panel).toContain("EUR");
   });
 
   it("keeps the column menu out of table layout entirely", () => {

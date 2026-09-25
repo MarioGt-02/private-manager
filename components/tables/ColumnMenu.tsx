@@ -50,6 +50,14 @@ export function ColumnMenuPanel({
 
   return <div ref={panelRef} data-popover="true" role="dialog" aria-label={`Column options: ${column.name}`} tabIndex={-1} style={style}
     className="fixed z-50 max-h-[70vh] w-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 text-left text-xs font-normal normal-case tracking-normal shadow-lg">
+    <div className="mb-1 border-b border-slate-200 px-1 pb-1">
+      <p className="truncate text-[11px] font-semibold text-slate-700" title={column.name}>{column.name}</p>
+      {/* The column type is shown here instead of permanently in the table header. */}
+      <p className="mt-0.5 text-[10px] uppercase tracking-wide text-slate-400">
+        {COLUMN_TYPE_LABELS[column.type]}{column.type === "currency" && column.currency ? ` · ${column.currency}` : ""}
+        {recurring && column.carryForward ? " · ↻" : ""}
+      </p>
+    </div>
     {mode === "confirm" ? <>
       <p className="content-wrap px-1 text-slate-700">Delete “{column.name}” and all of its values?</p>
       <div className="mt-2 flex flex-wrap gap-1.5">

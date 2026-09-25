@@ -767,11 +767,16 @@ describe("Object Tables UI", () => {
     expect(markup).toContain("Maintenance Items");
   });
 
-  it("renders every column type and keeps a wide table horizontally scrollable", () => {
+  it("renders every column type, fills the width and scrolls only when needed", () => {
     const markup = renderToStaticMarkup(createElement(TableGrid, { ...gridProps, table: tableView() }));
-    // Wide tables scroll instead of being squeezed into unreadable columns.
+    // The grid prefers 100% width; per-type minimums decide when it must scroll.
     expect(markup).toContain("overflow-x-auto");
-    expect(markup).toContain("min-w-[560px]");
+    expect(markup).toContain('class="w-full border-collapse text-sm"');
+    expect(markup).not.toContain("min-w-[560px]");
+    expect(markup).toContain("min-w-[9rem]");
+    expect(markup).toContain("min-w-[4rem]");
+    expect(markup).toContain("min-w-[7rem]");
+    expect(markup).toContain("min-w-[5.5rem]");
     expect(markup).toContain('aria-label="Maintenance Item · row 1"');
     expect(markup).toContain('value="Engine oil"');
     // A currency cell shows its code as a hint, a checkbox reflects the stored value.
@@ -782,6 +787,21 @@ describe("Object Tables UI", () => {
     expect(markup).toContain('aria-label="Column options: Maintenance Item"');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).not.toContain("Move left");
+  });
+
+  it("hides the type label from the header and shows it in the column menu", () => {
+    const markup = renderToStaticMarkup(createElement(TableGrid, { ...gridProps, table: tableView() }));
+    const head = markup.slice(markup.indexOf("<thead"), markup.indexOf("</thead>"));
+    for (const label of ["Text", "Checkbox", "Currency"]) expect(head).not.toContain(label);
+
+    const panel = renderToStaticMarkup(createElement(ColumnMenuPanel, {
+      column: tableView().columns[1], index: 1, count: 4, disabled: false, recurring: true,
+      onUpdate: noop, onMove: noop, onDelete: noop, onClose: noop,
+    }));
+    // The menu carries the type summary (and the currency configuration).
+    expect(panel).toContain("Cost");
+    expect(panel).toContain("Currency");
+    expect(panel).toContain("EUR");
   });
 
   it("keeps every column operation available in the floating column menu", () => {

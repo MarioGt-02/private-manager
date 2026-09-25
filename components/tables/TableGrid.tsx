@@ -2,7 +2,8 @@
 import { useRef, useState } from "react";
 import {
   CARRY_FORWARD_HINTS,
-  COLUMN_TYPE_LABELS,
+  COLUMN_WIDTH_CLASSES,
+  ROW_ACTIONS_WIDTH_CLASS,
   cellDisplayValue,
   type ObjectTableView,
   type TableColumnType,
@@ -65,21 +66,18 @@ function EditableCell({ column, value, label, disabled, onCommit }: {
       if (event.key === "Enter") { event.preventDefault(); commit(draft.trim()); }
       else if (event.key === "Escape") { event.preventDefault(); setDraft(value); }
     }}
-    className="w-full min-w-[7rem] rounded border border-transparent bg-transparent px-1 py-0.5 text-sm text-slate-700 hover:border-slate-200 focus:border-indigo-400 focus:bg-white focus:outline-none"
+    className="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-sm text-slate-700 hover:border-slate-200 focus:border-indigo-400 focus:bg-white focus:outline-none"
   />;
 }
 
-/** Column header: name, type summary and the compact column menu trigger. */
+/** Column header: the name, an optional repeat marker and the column menu. */
 function ColumnHeader(props: ColumnMenuProps) {
   const { column, recurring } = props;
-  return <th scope="col" className="min-w-[9rem] border-b border-slate-200 px-2 py-1.5 text-left align-bottom">
+  return <th scope="col" className={`${COLUMN_WIDTH_CLASSES[column.type]} border-b border-slate-200 px-2 py-1.5 text-left align-bottom`}>
     <div className="flex items-start justify-between gap-1">
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-semibold text-slate-700" title={column.name}>{column.name}</span>
-        <span className="mt-0.5 block text-[10px] font-normal uppercase tracking-wide text-slate-400">
-          {COLUMN_TYPE_LABELS[column.type]}{column.type === "currency" && column.currency ? ` · ${column.currency}` : ""}
-          {recurring && column.carryForward ? " · ↻" : ""}
-        </span>
+      <span className="flex min-w-0 flex-1 items-center gap-1">
+        <span className="truncate text-xs font-semibold text-slate-700" title={column.name}>{column.name}</span>
+        {recurring && column.carryForward && <span aria-hidden="true" title={CARRY_FORWARD_HINTS.column} className="shrink-0 text-[10px] leading-none text-blue-600">↻</span>}
       </span>
       <ColumnMenu {...props} />
     </div>
@@ -96,12 +94,12 @@ export function TableGrid({ table, disabled, recurring, onCells, onAddRow, onAdd
   const columns = table.columns;
   return <div>
     <div className="overflow-x-auto">
-      <table aria-label={table.title} className="w-full min-w-[560px] border-collapse text-sm">
+      <table aria-label={table.title} className="w-full border-collapse text-sm">
         <thead>
           <tr>
             {columns.map((column, index) => <ColumnHeader key={column.id} column={column} index={index} count={columns.length} disabled={disabled} recurring={recurring}
               onUpdate={onUpdateColumn} onMove={onMoveColumn} onDelete={onDeleteColumn} />)}
-            <th scope="col" className="w-24 border-b border-slate-200 px-2 py-1.5 text-left">
+            <th scope="col" className={`${ROW_ACTIONS_WIDTH_CLASS} border-b border-slate-200 px-2 py-1.5 text-left`}>
               <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Row</span>
             </th>
           </tr>
@@ -110,7 +108,7 @@ export function TableGrid({ table, disabled, recurring, onCells, onAddRow, onAdd
           {table.rows.map((row, rowIndex) => <tr key={row.id} className="align-middle">
             {columns.map((column) => {
               const value = row.cells[column.id] ?? "";
-              return <td key={column.id} className="border-b border-slate-100 px-1 py-0.5">
+              return <td key={column.id} className={column.type === "checkbox" ? "border-b border-slate-100 px-1 py-0.5 text-center" : "border-b border-slate-100 px-1 py-0.5"}>
                 <EditableCell key={`${column.id}:${value}`} column={column} value={value} disabled={disabled}
                   label={`${column.name} · row ${rowIndex + 1}`} onCommit={(next) => onCells([{ rowId: row.id, columnId: column.id, value: next }])} />
               </td>;

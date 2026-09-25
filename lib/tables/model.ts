@@ -23,6 +23,23 @@ export const COLUMN_TYPE_LABELS: Record<TableColumnType, string> = {
 };
 
 /**
+ * Minimum width per column type, as literal Tailwind classes so they are always
+ * emitted. The grid is `w-full`, so a table fills the available width and only
+ * falls back to horizontal scrolling when these minimums cannot all fit.
+ * Checkbox columns stay compact; text columns get the most room.
+ */
+export const COLUMN_WIDTH_CLASSES: Record<TableColumnType, string> = {
+  text: "min-w-[9rem]",
+  number: "min-w-[6rem]",
+  date: "min-w-[8rem]",
+  currency: "min-w-[7rem]",
+  checkbox: "min-w-[4rem]",
+};
+
+/** Width of the trailing row-action column (repeat, move, delete). */
+export const ROW_ACTIONS_WIDTH_CLASS = "min-w-[5.5rem]";
+
+/**
  * Centralised V1 limits. They prevent accidental abuse without constraining
  * realistic personal use: the Audi maintenance acceptance example needs one
  * table, six columns and ten rows.
