@@ -202,12 +202,14 @@ export async function POST(request: Request) {
 
     const json = extractJSON(content);
     if (json === undefined) {
+      console.error(`[${FEATURE}] provider output was not valid JSON. Raw (sanitized):`, truncate(redactString(content), 500));
       return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: `Provider output was not valid JSON. Raw output (sanitized): ${truncate(redactString(content), 300)}` } });
     }
 
     const normalizedJson = normalizeLegacyChatResponse(json);
     const result = chatResponseSchema.safeParse(normalizedJson);
     if (!result.success) {
+      console.error(`[${FEATURE}] schema validation failed. Raw (sanitized):`, truncate(redactString(content), 500));
       return errorResponse({
         code: "AI_SCHEMA_VALIDATION_ERROR",
         message: ERROR_MESSAGES.AI_SCHEMA_VALIDATION_ERROR,
@@ -216,7 +218,7 @@ export async function POST(request: Request) {
         route: ROUTE,
         provider: PROVIDER,
         model: CREATE_OBJECT_MODEL,
-        debug: { validationIssues: toValidationIssues(result.error.issues) },
+        debug: { details: `Raw output (sanitized): ${truncate(redactString(content), 300)}`, validationIssues: toValidationIssues(result.error.issues) },
       });
     }
 

@@ -42,4 +42,41 @@ describe("AI chat response schema", () => {
       { title: "Buy wood", completed: false, children: [] },
     ]);
   });
+
+  it("wraps a flat draft returned without the message/phase/draft wrapper", () => {
+    const normalized = normalizeLegacyChatResponse({
+      title: "Buy MT Thunder 4 SV helmet",
+      goal: "Purchase an MT Thunder 4 SV helmet",
+      currentState: "Not purchased yet",
+      nextAction: "Confirm size and color",
+      suggestedCategoryName: null,
+      checklist: [{ title: "Confirm size", completed: false, children: [] }],
+    });
+
+    const parsed = chatResponseSchema.parse(normalized);
+    expect(parsed.phase).toBe("proposal");
+    expect(parsed.draft?.title).toBe("Buy MT Thunder 4 SV helmet");
+    expect(parsed.draft?.checklist).toEqual([
+      { title: "Confirm size", completed: false, children: [] },
+    ]);
+  });
+
+  it("wraps a flat draft whose checklist items are strings", () => {
+    const normalized = normalizeLegacyChatResponse({
+      title: "Buy helmet",
+      goal: "Purchase a helmet",
+      currentState: "Researching",
+      nextAction: "Pick a model",
+      checklist: ["Pick a model", "Check size"],
+    });
+
+    expect(chatResponseSchema.parse(normalized).draft?.checklist).toEqual([
+      { title: "Pick a model", completed: false, children: [] },
+      { title: "Check size", completed: false, children: [] },
+    ]);
+  });
+
+  it("leaves a non-draft object unchanged", () => {
+    expect(normalizeLegacyChatResponse({ unrelated: true })).toEqual({ unrelated: true });
+  });
 });

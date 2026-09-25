@@ -123,12 +123,25 @@ export const quickCreateResponseSchema = z.object({
 });
 
 /**
- * Compatibility for providers that ignore the structured checklist item schema
- * and return a legacy flat string array.
+ * Compatibility for providers that ignore the structured-output schema and
+ * return legacy shapes:
+ *   1. A flat draft (title/goal/currentState/nextAction/checklist) without the
+ *      message/phase/draft wrapper — treated as a proposal.
+ *   2. A string-array checklist instead of object items.
  */
 export function normalizeLegacyChatResponse(value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value;
   const response = value as Record<string, unknown>;
+
+  const flatDraft = extractFlatDraft(response);
+  if (flatDraft) {
+    return {
+      message: "Here is the Object I drafted. Review and confirm to create it.",
+      phase: "proposal",
+      draft: flatDraft,
+    };
+  }
+
   const draft = response.draft;
   if (typeof draft !== "object" || draft === null) return value;
   const draftRecord = draft as Record<string, unknown>;
@@ -141,6 +154,34 @@ export function normalizeLegacyChatResponse(value: unknown): unknown {
       ...draftRecord,
       checklist: draftRecord.checklist.map((title) => ({ title, completed: false, children: [] })),
     },
+  };
+}
+
+/** Wrap a flat draft (no message/phase/draft wrapper) into the chat shape. */
+function extractFlatDraft(response: Record<string, unknown>): Record<string, unknown> | null {
+  if (response.message !== undefined || response.phase !== undefined || response.draft !== undefined) {
+    return null;
+  }
+  if (
+    typeof response.title !== "string" ||
+    typeof response.goal !== "string" ||
+    typeof response.currentState !== "string" ||
+    typeof response.nextAction !== "string" ||
+    !Array.isArray(response.checklist)
+  ) {
+    return null;
+  }
+  return {
+    title: response.title,
+    goal: response.goal,
+    currentState: response.currentState,
+    nextAction: response.nextAction,
+    suggestedCategoryName: response.suggestedCategoryName ?? null,
+    checklist: response.checklist.map((item) =>
+      typeof item === "string" ? { title: item, completed: false, children: [] } : item,
+    ),
+    recurrence: response.recurrence ?? null,
+    table: response.table ?? null,
   };
 }
 
