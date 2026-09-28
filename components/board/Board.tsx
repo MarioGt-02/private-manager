@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -39,8 +39,17 @@ import { AICreateDialog } from "@/components/ai/AICreateDialog";
 import { QuickCreateDialog } from "@/components/ai/QuickCreateDialog";
 import { reorderBoardObjects } from "@/lib/objects/board-order";
 import { ApiError, parseErrorDetail } from "@/lib/errors/client";
-import { CategoryProvider, mutateCategory } from "@/components/categories/CategoryContext";
+import { CategoryContext, CategoryProvider, mutateCategory } from "@/components/categories/CategoryContext";
 import { CategoryManager } from "@/components/categories/CategoryManager";
+import { CategoryFilter } from "./CategoryFilter";
+import {
+  CATEGORY_FILTER_STORAGE_KEY,
+  allCategoryFilter,
+  filterObjectsByCategory,
+  parseStoredCategoryFilter,
+  sanitizeCategoryFilter,
+  type CategoryFilterValue,
+} from "@/lib/categories/filter";
 
 interface BoardProps {
   initialObjects: ManagedObject[];
@@ -52,6 +61,7 @@ export function Board({ initialObjects, initialError = null }: BoardProps) {
 }
 
 function BoardContent({ initialObjects, initialError = null }: BoardProps) {
+  const { categories, loading: categoriesLoading } = useContext(CategoryContext);
   const [managingCategories, setManagingCategories] = useState(false);
   const [activityVersions, setActivityVersions] = useState<Record<string, number>>({});
   function toggleMinimized(id: string) {
@@ -77,6 +87,29 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   const [minimizedIds, setMinimizedIds] = useState<Set<string>>(() => new Set(initialObjects.filter((object) => object.status === "idea").map((object) => object.id)));
   const [pendingCompleteIds, setPendingCompleteIds] = useState<Set<string>>(new Set());
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilterValue>(allCategoryFilter);
+  const [categoryFilterHydrated, setCategoryFilterHydrated] = useState(false);
+
+  useEffect(() => {
+    if (categoriesLoading || categoryFilterHydrated) return;
+    try {
+      // Hydration restores a browser-only preference after the first client render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCategoryFilter(parseStoredCategoryFilter(window.localStorage.getItem(CATEGORY_FILTER_STORAGE_KEY), categories));
+    } catch {
+      setCategoryFilter(allCategoryFilter());
+    }
+    setCategoryFilterHydrated(true);
+  }, [categories, categoriesLoading, categoryFilterHydrated]);
+
+  const effectiveCategoryFilter = categoriesLoading
+    ? categoryFilter
+    : sanitizeCategoryFilter(categoryFilter, categories);
+
+  useEffect(() => {
+    if (!categoryFilterHydrated) return;
+    try { window.localStorage.setItem(CATEGORY_FILTER_STORAGE_KEY, JSON.stringify(effectiveCategoryFilter)); } catch { /* Filtering remains usable without storage. */ }
+  }, [effectiveCategoryFilter, categoryFilterHydrated]);
 
   // Distinguishes a real drag from a plain click so dragging a card does not
   // accidentally open the drawer afterwards.
@@ -152,7 +185,10 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     const insertAfter = targetObjectId && translated
       ? translated.top + translated.height / 2 > over.rect.top + over.rect.height / 2
       : false;
-    const reordered = reorderBoardObjects(objects, objectId, newStatus, targetObjectId, insertAfter);
+    const visibleObjectIds = effectiveCategoryFilter.mode === "all"
+      ? undefined
+      : new Set(filterObjectsByCategory(objects, effectiveCategoryFilter).map((object) => object.id));
+    const reordered = reorderBoardObjects(objects, objectId, newStatus, targetObjectId, insertAfter, visibleObjectIds);
     if (!reordered) return;
     const currentTargetIds = objects.filter((object) => object.status === newStatus).map((object) => object.id);
     if (currentTargetIds.length === reordered.orderedObjectIds.length && currentTargetIds.every((id, index) => id === reordered.orderedObjectIds[index])) return;
@@ -341,6 +377,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <CategoryFilter categories={categories} value={effectiveCategoryFilter} onChange={setCategoryFilter} />
           <button className="btn-secondary" onClick={() => setManagingCategories(true)}>Categories</button>
           <DataExport />
           <form action="/api/auth/logout" method="post">
@@ -388,7 +425,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
               <Column
                 key={column.id}
                 column={column}
-                objects={objects.filter((o) => o.status === column.id)}
+                objects={filterObjectsByCategory(objects.filter((o) => o.status === column.id), effectiveCategoryFilter)}
                 onSelect={handleSelect}
                 selectedId={selectedId}
                 minimizedIds={minimizedIds}

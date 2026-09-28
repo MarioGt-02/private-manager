@@ -32,6 +32,7 @@ export async function reorderObjectsAction({objectId,targetStatus,orderedObjectI
     const target = orderedObjectIds.map((id, position) => ({ ...byId.get(id)!, status: targetStatus, position }));
     fixture.objects = [...fixture.objects.filter((object) => object.status !== targetStatus && object.id !== objectId), ...target];
   });
+  return structuredClone(fixture.objects);
 }
 export async function setChecklistItemCompleted(id: string, completed: boolean) { await mutate("checklist_changed", () => { const item = current().checklist.find((item) => item.id === id)!; item.completed = completed; current().nextAction = deriveNextAction(current().checklist); }); return {...current().checklist.find((item) => item.id === id)!}; }
 export async function updateObjectFieldsAction({field,value}: {field: "title"|"goal"|"currentState"|"nextAction";value:string}) { await mutate(field === "currentState" ? "object_edited" : "plan_edited", () => { current()[field] = value.trim(); }); return structuredClone(current()); }
