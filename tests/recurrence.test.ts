@@ -16,6 +16,7 @@ vi.mock("@/lib/ai/openai", () => ({ getOpenAIClient: mocks.openai }));
 
 import { createObject, getBoardObjects, getObject, getObjects, getUpcomingOccurrences, reorderObjects, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
 import { addDependency } from "@/lib/db/dependencies";
+import { getArchivedObjects } from "@/lib/db/archive";
 
 beforeAll(async () => {
   pg = new PGlite();
@@ -98,6 +99,11 @@ describe("Recurring Objects", () => {
     await db.update(schema.objects).set({ recurrenceNextDate: today() }).where(eq(schema.objects.id, next.id));
     expect((await getBoardObjects()).map((object) => object.id)).toContain(next.id);
     expect(await getUpcomingOccurrences()).toEqual([]);
+    expect((await getObject(a.id))?.archivedAt).not.toBeNull();
+    expect((await getArchivedObjects({ status: "done", filter: "completed", offset: 0 })).objects.map((object) => object.id)).toContain(a.id);
+
+    await getBoardObjects();
+    expect((await db.select().from(schema.objectUpdates).where(eq(schema.objectUpdates.objectId, a.id))).filter((update) => update.type === "object_archived")).toHaveLength(1);
   });
 
   it("preserves a hidden future occurrence when visible Idea Objects are reordered", async () => {

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, isNotNull, isNull, lte, ne, or, getTableColumns } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lte, ne, or, getTableColumns } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
 import { categories, checklistItems, objectDependencies, objects, objectUpdates } from "./schema";
@@ -104,7 +104,38 @@ export async function getObjects(): Promise<ManagedObject[]> {
 
 /** Board payload: future generated occurrences are kept in storage but wait until due. */
 export async function getBoardObjects(): Promise<ManagedObject[]> {
-  return loadObjects(today());
+  const db = getDb();
+  const boardDate = today();
+  await db.transaction(async (tx) => {
+    const dueOccurrences = await tx.select({ id: objects.id, previousOccurrenceId: objects.previousOccurrenceId, title: objects.title })
+      .from(objects)
+      .where(and(
+        isNull(objects.archivedAt),
+        eq(objects.status, "idea"),
+        isNotNull(objects.previousOccurrenceId),
+        lte(objects.recurrenceNextDate, boardDate),
+      ))
+      .for("update");
+    const predecessorIds = [...new Set(dueOccurrences.flatMap((occurrence) => occurrence.previousOccurrenceId ? [occurrence.previousOccurrenceId] : []))];
+    if (!predecessorIds.length) return;
+
+    const completedPredecessors = await tx.select({ id: objects.id, title: objects.title })
+      .from(objects)
+      .where(and(inArray(objects.id, predecessorIds), eq(objects.status, "done"), isNull(objects.archivedAt)))
+      .for("update");
+    if (!completedPredecessors.length) return;
+
+    const archivedAt = new Date();
+    await tx.update(objects).set({ archivedAt, updatedAt: archivedAt })
+      .where(inArray(objects.id, completedPredecessors.map((object) => object.id)));
+    await tx.insert(objectUpdates).values(completedPredecessors.map((object) => ({
+      id: randomUUID(),
+      objectId: object.id,
+      type: "object_archived",
+      content: `Archived completed occurrence when its next occurrence became due: ${object.title}.`,
+    })));
+  });
+  return loadObjects(boardDate);
 }
 
 export interface UpcomingOccurrenceSummary {
