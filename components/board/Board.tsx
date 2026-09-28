@@ -42,6 +42,7 @@ import { ApiError, parseErrorDetail } from "@/lib/errors/client";
 import { CategoryContext, CategoryProvider, mutateCategory } from "@/components/categories/CategoryContext";
 import { CategoryManager } from "@/components/categories/CategoryManager";
 import { CategoryFilter } from "./CategoryFilter";
+import { CategoryQuickFilterBar } from "./CategoryQuickFilterBar";
 import {
   CATEGORY_FILTER_STORAGE_KEY,
   allCategoryFilter,
@@ -420,7 +421,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="flex h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 sm:gap-4 sm:p-5">
+          <div className="flex h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 pb-20 sm:gap-4 sm:p-5 sm:pb-20">
             {COLUMNS.map((column) => (
               <Column
                 key={column.id}
@@ -443,6 +444,8 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           </DragOverlay>
         </DndContext>
       </div>
+
+      <CategoryQuickFilterBar categories={categories} value={effectiveCategoryFilter} onChange={setCategoryFilter} />
 
       {archiveStatus && <ArchiveDrawer key={archiveStatus} status={archiveStatus} version={historyVersion} onClose={() => setArchiveStatus(null)} onOpen={openArchivedObject} onRestore={(id) => handleLifecycle(id, "restore")} onDelete={handleDeleteObject} />}
       <ObjectDrawer

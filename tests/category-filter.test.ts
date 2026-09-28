@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Column } from "@/components/board/Column";
 import { CategoryFilter } from "@/components/board/CategoryFilter";
+import { CategoryQuickFilterBar } from "@/components/board/CategoryQuickFilterBar";
 import { COLUMNS, type ManagedObject } from "@/lib/types/object";
 import {
   allCategoryFilter,
@@ -104,6 +105,15 @@ describe("Board category filter", () => {
     const markup = renderToStaticMarkup(createElement(CategoryFilter, { categories, value: { mode: "selected", categoryIds: ["vehicles"], includeUncategorized: true }, onChange: () => {} }));
     expect(markup).toContain("Category: 2 selected");
     expect(markup).not.toContain("Filter categories");
+  });
+
+  it("renders the quick filter bar with shared active state and accessible buttons", () => {
+    const markup = renderToStaticMarkup(createElement(CategoryQuickFilterBar, { categories, value: { mode: "selected", categoryIds: ["vehicles", "maker"], includeUncategorized: true }, onChange: () => {} }));
+    expect(markup).toContain('aria-label="Quick category filter"');
+    expect(markup).toContain('aria-label="Vehicles"');
+    expect(markup).toContain('aria-label="Maker &amp; DIY"');
+    expect(markup).toContain('aria-label="No category"');
+    expect(markup).toContain('aria-pressed="true"');
   });
 
   it("preserves hidden card order when reordering a filtered view", () => {
