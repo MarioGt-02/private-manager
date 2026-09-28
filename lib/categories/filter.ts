@@ -45,6 +45,37 @@ export function filterObjectsByCategory(objects: ManagedObject[], filter: Catego
   return objects.filter((object) => categoryMatchesFilter(object, filter));
 }
 
+/** Apply one bottom quick-bar click without creating a second filter state. */
+export function applyQuickCategoryFilterClick(
+  value: CategoryFilterValue,
+  categoryId: string | null,
+  modified: boolean,
+): CategoryFilterValue {
+  const selectedIds = value.mode === "selected" ? value.categoryIds : [];
+  const includeUncategorized = value.mode === "selected" && value.includeUncategorized;
+
+  if (!modified) {
+    if (categoryId === null) {
+      return includeUncategorized && selectedIds.length === 0
+        ? allCategoryFilter()
+        : { mode: "selected", categoryIds: [], includeUncategorized: true };
+    }
+    return selectedIds.length === 1 && selectedIds[0] === categoryId && !includeUncategorized
+      ? allCategoryFilter()
+      : { mode: "selected", categoryIds: [categoryId], includeUncategorized: false };
+  }
+
+  const nextCategoryIds = categoryId === null
+    ? selectedIds
+    : selectedIds.includes(categoryId)
+      ? selectedIds.filter((id) => id !== categoryId)
+      : [...selectedIds, categoryId];
+  const nextUncategorized = categoryId === null ? !includeUncategorized : includeUncategorized;
+  return nextCategoryIds.length || nextUncategorized
+    ? { mode: "selected", categoryIds: nextCategoryIds, includeUncategorized: nextUncategorized }
+    : allCategoryFilter();
+}
+
 export function categoryFilterLabel(filter: CategoryFilterValue, categories: Category[]): string {
   if (filter.mode === "all") return "All";
   const count = filter.categoryIds.length + (filter.includeUncategorized ? 1 : 0);

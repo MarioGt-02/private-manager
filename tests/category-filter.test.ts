@@ -7,6 +7,7 @@ import { CategoryQuickFilterBar } from "@/components/board/CategoryQuickFilterBa
 import { COLUMNS, type ManagedObject } from "@/lib/types/object";
 import {
   allCategoryFilter,
+  applyQuickCategoryFilterClick,
   categoryFilterLabel,
   filterObjectsByCategory,
   parseStoredCategoryFilter,
@@ -114,6 +115,24 @@ describe("Board category filter", () => {
     expect(markup).toContain('aria-label="Maker &amp; DIY"');
     expect(markup).toContain('aria-label="No category"');
     expect(markup).toContain('aria-pressed="true"');
+    expect(markup).not.toContain(">All</button>");
+  });
+
+  it("applies solo, toggle-All, modifier-add/remove and No category quick clicks", () => {
+    const all = allCategoryFilter();
+    const vehicles = applyQuickCategoryFilterClick(all, "vehicles", false);
+    expect(vehicles).toEqual({ mode: "selected", categoryIds: ["vehicles"], includeUncategorized: false });
+    expect(applyQuickCategoryFilterClick(vehicles, "vehicles", false)).toEqual(all);
+    expect(applyQuickCategoryFilterClick(vehicles, "maker", false)).toEqual({ mode: "selected", categoryIds: ["maker"], includeUncategorized: false });
+    const multi = applyQuickCategoryFilterClick(vehicles, "maker", true);
+    expect(multi).toEqual({ mode: "selected", categoryIds: ["vehicles", "maker"], includeUncategorized: false });
+    expect(applyQuickCategoryFilterClick(multi, "vehicles", true)).toEqual({ mode: "selected", categoryIds: ["maker"], includeUncategorized: false });
+    expect(applyQuickCategoryFilterClick({ mode: "selected", categoryIds: ["maker"], includeUncategorized: false }, "maker", true)).toEqual(all);
+    const none = applyQuickCategoryFilterClick(all, null, false);
+    expect(none).toEqual({ mode: "selected", categoryIds: [], includeUncategorized: true });
+    expect(applyQuickCategoryFilterClick(none, null, false)).toEqual(all);
+    expect(applyQuickCategoryFilterClick(vehicles, null, true)).toEqual({ mode: "selected", categoryIds: ["vehicles"], includeUncategorized: true });
+    expect(applyQuickCategoryFilterClick({ mode: "selected", categoryIds: [], includeUncategorized: true }, null, true)).toEqual(all);
   });
 
   it("preserves hidden card order when reordering a filtered view", () => {
