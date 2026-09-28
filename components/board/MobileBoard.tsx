@@ -27,7 +27,7 @@ export function MobileBoard({ objects, activeStatus, onStatusChange, onSelect, s
         </button>)}
       </div>
     </nav>
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-6">
+    <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 py-4 pb-6">
       <div className="mb-3 flex items-center justify-between"><h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{activeColumn.emoji} {activeColumn.label}</h2><span className="text-xs tabular-nums text-slate-500">{activeObjects.length}</span></div>
       <div className="space-y-3">
         {activeObjects.map((object) => <ObjectCard key={object.id} object={object} selected={object.id === selectedId} minimized={minimizedIds.has(object.id)} pending={pendingIds.has(object.id)} onSelect={onSelect} onToggleMinimize={() => onToggleMinimize(object.id)} onCompleteNextAction={(itemId) => onCompleteNextAction(object.id, itemId)} dragEnabled={false} mobile onMoveStatus={(status) => onMoveStatus(object.id, status)} />)}

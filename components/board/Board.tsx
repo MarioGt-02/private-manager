@@ -490,7 +490,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
         <ObjectSearch value={searchQuery} onChange={setSearchQuery} resultCount={visibleObjects.length} wide />
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         {error && (
           <div
             role="alert"

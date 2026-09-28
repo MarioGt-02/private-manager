@@ -33,6 +33,7 @@ describe("Mobile Board presentation", () => {
       onMoveStatus: vi.fn(),
     }));
     expect(markup).toContain('aria-label="Board status tabs"');
+    expect(markup).toContain("touch-pan-y");
     expect(markup).toContain("Idea");
     expect(markup).toContain("Doing");
     expect(markup).toContain("doing title");
