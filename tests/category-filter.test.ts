@@ -15,6 +15,7 @@ import {
   type CategoryFilterValue,
 } from "@/lib/categories/filter";
 import { reorderBoardObjects } from "@/lib/objects/board-order";
+import { filterObjectsBySearch, matchesObjectSearch, normalizeSearchText } from "@/lib/objects/search";
 import type { Category } from "@/lib/categories/model";
 
 const categories: Category[] = [
@@ -158,5 +159,27 @@ describe("Board category filter", () => {
     const reordered = reorderBoardObjects(all, "a", "ready", "b", true)!;
     expect(reordered.orderedObjectIds).toEqual(["b", "a", "c"]);
     expect(reordered.objects.map((item) => item.id)).toEqual(["b", "a", "c"]);
+  });
+
+  it("searches every Board text field with Unicode-safe AND matching", () => {
+    const searchable = {
+      ...object("audi", "vehicles"),
+      title: "Audi A3",
+      goal: "每年完成车辆保养",
+      currentState: "已完成检查",
+      nextAction: "安排下次保养",
+      occurrenceNote: "Filtro italiano",
+      checklist: [
+        { id: "parent", parentId: null, title: "检查车辆", completed: false, position: 0 },
+        { id: "child", parentId: "parent", title: "Oil Filter", completed: false, position: 1 },
+      ],
+    };
+    expect(matchesObjectSearch(searchable, "Audi 保养")).toBe(true);
+    expect(matchesObjectSearch(searchable, "oil   filter")).toBe(true);
+    expect(matchesObjectSearch(searchable, "Filtro")).toBe(true);
+    expect(matchesObjectSearch(searchable, "Audi missing")).toBe(false);
+    expect(normalizeSearchText("  Ａｕｄｉ\tA3  ")).toBe("audi a3");
+    expect(filterObjectsBySearch([searchable], "")).toHaveLength(1);
+    expect(filterObjectsBySearch([searchable], "not-found")).toHaveLength(0);
   });
 });

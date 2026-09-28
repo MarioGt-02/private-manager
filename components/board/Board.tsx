@@ -43,6 +43,7 @@ import { CategoryContext, CategoryProvider, mutateCategory } from "@/components/
 import { CategoryManager } from "@/components/categories/CategoryManager";
 import { CategoryFilter } from "./CategoryFilter";
 import { CategoryQuickFilterBar } from "./CategoryQuickFilterBar";
+import { ObjectSearch } from "./ObjectSearch";
 import {
   CATEGORY_FILTER_STORAGE_KEY,
   allCategoryFilter,
@@ -51,6 +52,7 @@ import {
   sanitizeCategoryFilter,
   type CategoryFilterValue,
 } from "@/lib/categories/filter";
+import { filterObjectsBySearch } from "@/lib/objects/search";
 
 interface BoardProps {
   initialObjects: ManagedObject[];
@@ -90,6 +92,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [pendingCompleteIds, setPendingCompleteIds] = useState<Set<string>>(new Set());
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilterValue>(allCategoryFilter);
   const [categoryFilterHydrated, setCategoryFilterHydrated] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (categoriesLoading || categoryFilterHydrated) return;
@@ -106,6 +109,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const effectiveCategoryFilter = categoriesLoading
     ? categoryFilter
     : sanitizeCategoryFilter(categoryFilter, categories);
+  const visibleObjects = filterObjectsBySearch(filterObjectsByCategory(objects, effectiveCategoryFilter), searchQuery);
 
   useEffect(() => {
     if (!categoryFilterHydrated) return;
@@ -186,9 +190,9 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     const insertAfter = targetObjectId && translated
       ? translated.top + translated.height / 2 > over.rect.top + over.rect.height / 2
       : false;
-    const visibleObjectIds = effectiveCategoryFilter.mode === "all"
+    const visibleObjectIds = !searchQuery.trim() && effectiveCategoryFilter.mode === "all"
       ? undefined
-      : new Set(filterObjectsByCategory(objects, effectiveCategoryFilter).map((object) => object.id));
+      : new Set(visibleObjects.map((object) => object.id));
     const reordered = reorderBoardObjects(objects, objectId, newStatus, targetObjectId, insertAfter, visibleObjectIds);
     if (!reordered) return;
     const currentTargetIds = objects.filter((object) => object.status === newStatus).map((object) => object.id);
@@ -378,6 +382,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <ObjectSearch value={searchQuery} onChange={setSearchQuery} resultCount={visibleObjects.length} />
           <CategoryFilter categories={categories} value={effectiveCategoryFilter} onChange={setCategoryFilter} />
           <button className="btn-secondary" onClick={() => setManagingCategories(true)}>Categories</button>
           <DataExport />
@@ -426,7 +431,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
               <Column
                 key={column.id}
                 column={column}
-                objects={filterObjectsByCategory(objects.filter((o) => o.status === column.id), effectiveCategoryFilter)}
+                objects={visibleObjects.filter((o) => o.status === column.id)}
                 onSelect={handleSelect}
                 selectedId={selectedId}
                 minimizedIds={minimizedIds}
@@ -436,6 +441,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
                 onArchive={() => { setArchiveStatus(column.id); setSelectedId(null); setHistoricalObject(null); }}
               />
             ))}
+            {searchQuery.trim() && visibleObjects.length === 0 && <p role="status" className="pointer-events-none fixed left-1/2 top-20 z-10 -translate-x-1/2 rounded-md border border-slate-200 bg-white/90 px-3 py-1.5 text-xs text-slate-500 shadow-sm">No objects match this search</p>}
           </div>
 
           <CancelDropZone active={activeId !== null} />
