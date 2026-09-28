@@ -98,6 +98,37 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilterValue>(allCategoryFilter);
   const [categoryFilterHydrated, setCategoryFilterHydrated] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const [boardScrollEdges, setBoardScrollEdges] = useState({ left: false, right: false });
+
+  function updateBoardScrollEdges() {
+    const element = boardScrollRef.current;
+    if (!element) return;
+    const maxScroll = element.scrollWidth - element.clientWidth;
+    setBoardScrollEdges({
+      left: element.scrollLeft > 2,
+      right: maxScroll - element.scrollLeft > 2,
+    });
+  }
+
+  function scrollBoard(direction: -1 | 1) {
+    const element = boardScrollRef.current;
+    if (!element) return;
+    element.scrollBy({ left: direction * element.clientWidth * 0.75, behavior: "smooth" });
+  }
+
+  useEffect(() => {
+    const element = boardScrollRef.current;
+    if (!element) return;
+    updateBoardScrollEdges();
+    const observer = new ResizeObserver(updateBoardScrollEdges);
+    observer.observe(element);
+    window.addEventListener("resize", updateBoardScrollEdges);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateBoardScrollEdges);
+    };
+  }, []);
 
   useEffect(() => {
     if (categoriesLoading || categoryFilterHydrated) return;
@@ -422,7 +453,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
         {error && (
           <div
             role="alert"
@@ -447,7 +478,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="flex h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 pb-20 sm:gap-4 sm:p-5 sm:pb-20">
+          <div ref={boardScrollRef} onScroll={updateBoardScrollEdges} className="flex h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 pb-20 sm:gap-4 sm:p-5 sm:pb-20">
             {COLUMNS.map((column) => (
               <Column
                 key={column.id}
@@ -471,6 +502,24 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
             {activeObject ? <ObjectCardOverlay object={activeObject} minimized={minimizedIds.has(activeObject.id)} /> : null}
           </DragOverlay>
         </DndContext>
+        <button
+          type="button"
+          aria-label="Scroll Board left"
+          title="Scroll Board left"
+          disabled={!boardScrollEdges.left}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => scrollBoard(-1)}
+          className="absolute left-2 top-1/2 z-20 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-md transition hover:bg-white disabled:pointer-events-none disabled:opacity-0"
+        >‹</button>
+        <button
+          type="button"
+          aria-label="Scroll Board right"
+          title="Scroll Board right"
+          disabled={!boardScrollEdges.right}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => scrollBoard(1)}
+          className="absolute right-2 top-1/2 z-20 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-md transition hover:bg-white disabled:pointer-events-none disabled:opacity-0"
+        >›</button>
       </div>
 
       <CategoryQuickFilterBar categories={categories} value={effectiveCategoryFilter} onChange={setCategoryFilter} />
