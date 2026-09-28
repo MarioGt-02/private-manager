@@ -65,4 +65,9 @@ describe('Deterministic card presentation',()=>{
   const id=await existing('101','Informatica');await db.delete(schema.checklistItems).where(eq(schema.checklistItems.objectId,id));const object=(await getObject(id))!;
   const html=renderToStaticMarkup(createElement(CardBody,{object}));expect(html).not.toContain('Informatica');expect(html).toContain('line-clamp-2');expect(html).toContain('line-clamp-3');expect(html).toContain('No checklist');expect(html).not.toContain('0/0');expect(html).not.toContain('role="progressbar"');
  });
+ it('shows a recurring next date even when the card is minimized',async()=>{
+  const id=await existing('102');const object=(await getObject(id))!;
+  const html=renderToStaticMarkup(createElement(CardBody,{object:{...object,recurrence:{seriesId:id,frequency:'yearly',interval:1,basis:'completion_date',nextDate:'2027-09-28',previousOccurrenceId:null,nextOccurrenceId:'next-id'}},minimized:true}));
+  expect(html).toContain('Next 2027-09-28');
+ });
 });

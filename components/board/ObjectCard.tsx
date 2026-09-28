@@ -54,6 +54,7 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
         <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className={`h-4 w-4 transition-transform ${minimized ? "rotate-0" : "rotate-180"}`}><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
       </button>}
     </div>
+    {object.recurrence?.nextDate ? <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500"><span aria-hidden="true">↻</span><span>Next {object.recurrence.nextDate}</span></p> : null}
     {!minimized && <>
       <div className="mt-2.5 rounded-md bg-slate-50 px-2 py-1.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Current</p>
@@ -78,7 +79,6 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
         </div>
         <span className="text-xs font-medium tabular-nums text-slate-600">{completed} / {total}</span>
       </div> : <p className="mt-2 text-[11px] text-slate-400">No checklist</p>}
-      {object.recurrence?.nextDate ? <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-slate-500"><span aria-hidden="true">↻</span><span>Next {object.recurrence.nextDate}</span></p> : null}
     </>}
   </>;
 }
