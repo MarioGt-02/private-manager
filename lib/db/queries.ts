@@ -418,7 +418,7 @@ export async function reorderObjects(
   objectId: string,
   targetStatus: ObjectStatus,
   orderedObjectIds: string[],
-): Promise<void> {
+): Promise<ManagedObject[]> {
   const db = getDb();
   await db.transaction(async (tx) => {
     const [current] = await tx.select().from(objects).where(eq(objects.id, objectId)).for("update");
@@ -471,6 +471,7 @@ export async function reorderObjects(
       });
     }
   });
+  return getObjects();
 }
 
 export async function updateChecklistItem(

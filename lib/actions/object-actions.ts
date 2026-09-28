@@ -32,11 +32,11 @@ export async function moveObjectToStatus(
   await updateObjectStatus(objectId, status);
 }
 
-export async function reorderObjectsAction(input: unknown): Promise<void> {
+export async function reorderObjectsAction(input: unknown) {
   await requireAuth();
   const parsed = objectReorderSchema.safeParse(input);
   if (!parsed.success) throw new Error("Invalid Object ordering.");
-  await reorderObjects(parsed.data.objectId, parsed.data.targetStatus, parsed.data.orderedObjectIds);
+  return reorderObjects(parsed.data.objectId, parsed.data.targetStatus, parsed.data.orderedObjectIds);
 }
 
 /**
