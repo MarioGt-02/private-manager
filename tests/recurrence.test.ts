@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import { eq } from "drizzle-orm";
 import * as schema from "@/lib/db/schema";
 import { addInterval, today } from "@/lib/recurrence/calc";
 
@@ -13,7 +14,7 @@ vi.mock("@/lib/db/index", () => ({ getDb: () => db }));
 vi.mock("@/lib/auth/require-auth", () => ({ requireAuth: mocks.auth }));
 vi.mock("@/lib/ai/openai", () => ({ getOpenAIClient: mocks.openai }));
 
-import { createObject, getObject, getObjects, reorderObjects, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
+import { createObject, getBoardObjects, getObject, getObjects, reorderObjects, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
 import { addDependency } from "@/lib/db/dependencies";
 
 beforeAll(async () => {
@@ -79,6 +80,37 @@ describe("Recurring Objects", () => {
     expect(next.recurrence?.seriesId).toBe(a.id);
     expect(next.recurrence?.previousOccurrenceId).toBe(a.id);
     expect(done.recurrence?.nextOccurrenceId).toBe(next.id);
+  });
+
+  it("keeps the next occurrence off the Board until its scheduled day", async () => {
+    const a = await make("Car wash");
+    await updateObjectRecurrence(a.id, { frequency: "monthly", interval: 1, basis: "completion_date", nextDate: null });
+    await updateObjectStatus(a.id, "done");
+
+    const allOccurrences = await getObjects();
+    const next = allOccurrences.find((object) => object.id !== a.id)!;
+    expect(allOccurrences).toHaveLength(2);
+    expect(next.recurrence?.nextDate).toBeTruthy();
+    expect(next.recurrence!.nextDate! > today()).toBe(true);
+    expect((await getBoardObjects()).map((object) => object.id)).toEqual([a.id]);
+
+    await db.update(schema.objects).set({ recurrenceNextDate: today() }).where(eq(schema.objects.id, next.id));
+    expect((await getBoardObjects()).map((object) => object.id)).toContain(next.id);
+  });
+
+  it("preserves a hidden future occurrence when visible Idea Objects are reordered", async () => {
+    const first = await make("First", "idea");
+    const second = await make("Second", "idea");
+    const recurring = await make("Recurring");
+    await updateObjectRecurrence(recurring.id, { frequency: "monthly", interval: 1, basis: "completion_date", nextDate: null });
+    await updateObjectStatus(recurring.id, "done");
+    const future = (await getObjects()).find((object) => object.recurrence?.previousOccurrenceId === recurring.id)!;
+
+    await reorderObjects(second.id, "idea", [second.id, first.id]);
+
+    const allIdeas = (await getObjects()).filter((object) => object.status === "idea");
+    expect(allIdeas.map((object) => object.id)).toEqual([second.id, first.id, future.id]);
+    expect((await getBoardObjects()).some((object) => object.id === future.id)).toBe(false);
   });
 
   it("duplicate completion is idempotent", async () => {

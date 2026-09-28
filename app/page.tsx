@@ -1,7 +1,7 @@
 import { BoardClient } from "@/components/board/BoardClient";
 import { redirect } from "next/navigation";
 import { requireAuth, UnauthorizedError } from "@/lib/auth/require-auth";
-import { getObjects } from "@/lib/db/queries";
+import { getBoardObjects } from "@/lib/db/queries";
 import type { ManagedObject } from "@/lib/types/object";
 
 // The board reads from PostgreSQL on every request.
@@ -18,7 +18,7 @@ export default async function Home() {
   let error: string | null = null;
 
   try {
-    objects = await getObjects();
+    objects = await getBoardObjects();
   } catch {
     error =
       "Could not load objects from the database. Check DATABASE_URL and run the migrations.";

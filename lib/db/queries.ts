@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNull, ne, getTableColumns } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull, lte, ne, or, getTableColumns } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
 import { categories, checklistItems, objectDependencies, objects, objectUpdates } from "./schema";
@@ -38,6 +38,16 @@ function resolveRecurrenceDisplayRow(row: ObjectRow, rowsById: Map<string, Objec
   return next?.recurrenceNextDate
     ? { ...row, recurrenceNextDate: next.recurrenceNextDate }
     : row;
+}
+
+/** Future recurring occurrences stay out of the active Board until their date. */
+function boardOccurrenceFilter(todayDate: string) {
+  return or(
+    isNull(objects.previousOccurrenceId),
+    ne(objects.status, "idea"),
+    isNull(objects.recurrenceNextDate),
+    lte(objects.recurrenceNextDate, todayDate),
+  );
 }
 
 type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
@@ -89,20 +99,32 @@ export function toManagedObject(row: ObjectRow, items: ChecklistItem[], unresolv
 }
 
 export async function getObjects(): Promise<ManagedObject[]> {
+  return loadObjects();
+}
+
+/** Board payload: future generated occurrences are kept in storage but wait until due. */
+export async function getBoardObjects(): Promise<ManagedObject[]> {
+  return loadObjects(today());
+}
+
+async function loadObjects(boardDate?: string): Promise<ManagedObject[]> {
   const db = getDb();
+  const activeFilter = boardDate
+    ? and(isNull(objects.archivedAt), boardOccurrenceFilter(boardDate))
+    : isNull(objects.archivedAt);
   const [objectRows, itemRows, dependencyRows] = await Promise.all([
-    db.select().from(objects).where(isNull(objects.archivedAt)).orderBy(asc(objects.status), asc(objects.position), asc(objects.createdAt), asc(objects.id)),
+    db.select().from(objects).where(activeFilter).orderBy(asc(objects.status), asc(objects.position), asc(objects.createdAt), asc(objects.id)),
     db
       .select(getTableColumns(checklistItems))
       .from(checklistItems)
       .innerJoin(objects, eq(checklistItems.objectId, objects.id))
-      .where(isNull(objects.archivedAt))
+      .where(activeFilter)
       .orderBy(asc(checklistItems.position)),
     db
       .select({ objectId: objectDependencies.objectId, unresolved: count() })
       .from(objectDependencies)
       .innerJoin(objects, eq(objectDependencies.dependsOnObjectId, objects.id))
-      .where(ne(objects.status, "done"))
+      .where(and(ne(objects.status, "done"), activeFilter))
       .groupBy(objectDependencies.objectId),
   ]);
 
@@ -512,16 +534,45 @@ export async function reorderObjects(
       .map((row) => row.id)
       .concat(objectId);
     const requested = new Set(orderedObjectIds);
+    const boardDate = today();
+    const visibleTargetIds = new Set(targetRows
+      .filter((row) => row.id !== objectId && (!row.previousOccurrenceId || !row.recurrenceNextDate || row.recurrenceNextDate <= boardDate))
+      .map((row) => row.id));
     if (
       requested.size !== orderedObjectIds.length ||
-      requested.size !== expectedIds.length ||
-      expectedIds.some((id) => !requested.has(id))
+      orderedObjectIds.some((id) => !expectedIds.includes(id)) ||
+      !requested.has(objectId) ||
+      [...visibleTargetIds].some((id) => !requested.has(id))
     ) {
       throw new Error("Invalid Object ordering.");
     }
 
+    const targetRowsWithoutMoving = targetRows.filter((row) => row.id !== objectId);
+    const desiredExistingVisible = orderedObjectIds.filter((id) => id !== objectId);
+    const mergedTarget: string[] = [];
+    let visibleIndex = 0;
+    for (const row of targetRowsWithoutMoving) {
+      mergedTarget.push(visibleTargetIds.has(row.id) ? desiredExistingVisible[visibleIndex++] : row.id);
+    }
+    const movingIndex = orderedObjectIds.indexOf(objectId);
+    const movingVisibleIndex = orderedObjectIds
+      .slice(0, movingIndex)
+      .filter((id) => visibleTargetIds.has(id)).length;
+    let visibleSeen = 0;
+    let inserted = false;
+    const persistedTargetOrder: string[] = [];
+    for (const id of mergedTarget) {
+      if (!inserted && visibleSeen === movingVisibleIndex) {
+        persistedTargetOrder.push(objectId);
+        inserted = true;
+      }
+      persistedTargetOrder.push(id);
+      if (visibleTargetIds.has(id)) visibleSeen += 1;
+    }
+    if (!inserted) persistedTargetOrder.push(objectId);
+
     const now = new Date();
-    for (const [position, id] of orderedObjectIds.entries()) {
+    for (const [position, id] of persistedTargetOrder.entries()) {
       await tx
         .update(objects)
         .set({ position, ...(id === objectId ? { status: targetStatus, updatedAt: now } : {}) })
@@ -544,7 +595,7 @@ export async function reorderObjects(
       });
     }
   });
-  return getObjects();
+  return getBoardObjects();
 }
 
 export async function updateChecklistItem(

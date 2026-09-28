@@ -16,7 +16,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({
   set: state.set,
 }) }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`REDIRECT:${path}`); } }));
-vi.mock("@/lib/db/queries", () => ({ getObjects: state.dbRead, createObject: state.create, updateObjectStatus: state.status, updateChecklistItem: state.checklist }));
+vi.mock("@/lib/db/queries", () => ({ getObjects: state.dbRead, getBoardObjects: state.dbRead, createObject: state.create, updateObjectStatus: state.status, updateChecklistItem: state.checklist }));
 vi.mock("@/lib/ai/openai", () => ({ getOpenAIClient: state.openai }));
 vi.mock("@/components/board/Board", () => ({ Board: () => null }));
 vi.mock("@/components/auth/LoginForm", () => ({ LoginForm: () => null }));
