@@ -136,6 +136,16 @@ describe("Recurring Objects", () => {
     expect((await getObject(completion.id))!.recurrence?.nextDate).toBe(expected);
   });
 
+  it("restores a generated next date when recurrence is stopped and re-enabled", async () => {
+    const a = await make("Bollo");
+    await updateObjectRecurrence(a.id, { frequency: "yearly", interval: 1, basis: "scheduled_date", nextDate: "2026-10-31" });
+    await updateObjectStatus(a.id, "done");
+    await updateObjectRecurrence(a.id, null);
+    await updateObjectRecurrence(a.id, { frequency: "yearly", interval: 1, basis: "completion_date", nextDate: null });
+
+    expect((await getObject(a.id))!.recurrence?.nextDate).toBe("2027-10-31");
+  });
+
   it("does not copy dependencies to the next occurrence", async () => {
     const a = await make("A");
     const x = await make("X");

@@ -32,6 +32,14 @@ function prepareChecklist(items: ChecklistItem[]): ChecklistItem[] {
   return sortChecklist(withDerivedCompletion(items));
 }
 
+function resolveRecurrenceDisplayRow(row: ObjectRow, rowsById: Map<string, ObjectRow>): ObjectRow {
+  if (row.recurrenceNextDate || !row.nextOccurrenceId) return row;
+  const next = rowsById.get(row.nextOccurrenceId);
+  return next?.recurrenceNextDate
+    ? { ...row, recurrenceNextDate: next.recurrenceNextDate }
+    : row;
+}
+
 type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 
 async function syncParentCompletion(tx: Tx, objectId: string): Promise<void> {
@@ -107,9 +115,10 @@ export async function getObjects(): Promise<ManagedObject[]> {
 
   const unresolvedByObject = new Map<string, number>();
   for (const row of dependencyRows) unresolvedByObject.set(row.objectId, row.unresolved);
+  const rowsById = new Map(objectRows.map((row) => [row.id, row]));
 
   return objectRows.map((row) =>
-    toManagedObject(row, prepareChecklist(itemsByObject.get(row.id) ?? []), unresolvedByObject.get(row.id) ?? 0),
+    toManagedObject(resolveRecurrenceDisplayRow(row, rowsById), prepareChecklist(itemsByObject.get(row.id) ?? []), unresolvedByObject.get(row.id) ?? 0),
   );
 }
 
@@ -123,13 +132,23 @@ export async function getObject(id: string): Promise<ManagedObject | null> {
 
   if (!objectRow) return null;
 
+  let displayRow = objectRow;
+  if (!displayRow.recurrenceNextDate && displayRow.nextOccurrenceId) {
+    const [next] = await db
+      .select({ recurrenceNextDate: objects.recurrenceNextDate })
+      .from(objects)
+      .where(eq(objects.id, displayRow.nextOccurrenceId))
+      .limit(1);
+    if (next?.recurrenceNextDate) displayRow = { ...displayRow, recurrenceNextDate: next.recurrenceNextDate };
+  }
+
   const itemRows = await db
     .select()
     .from(checklistItems)
     .where(eq(checklistItems.objectId, id))
     .orderBy(asc(checklistItems.position));
 
-  return toManagedObject(objectRow, prepareChecklist(itemRows.map(toChecklistItem)));
+  return toManagedObject(displayRow, prepareChecklist(itemRows.map(toChecklistItem)));
 }
 
 export interface CreateObjectChecklistInput {
@@ -346,6 +365,14 @@ export async function updateObjectRecurrence(objectId: string, input: Recurrence
     }
 
     const wasRecurring = !!current.recurrenceFrequency;
+    const [existingNextOccurrence] = current.nextOccurrenceId
+      ? await tx
+        .select({ recurrenceNextDate: objects.recurrenceNextDate })
+        .from(objects)
+        .where(eq(objects.id, current.nextOccurrenceId))
+        .limit(1)
+      : [];
+    const nextDate = input.nextDate ?? existingNextOccurrence?.recurrenceNextDate ?? null;
     await tx
       .update(objects)
       .set({
@@ -353,7 +380,7 @@ export async function updateObjectRecurrence(objectId: string, input: Recurrence
         recurrenceFrequency: input.frequency,
         recurrenceInterval: input.interval,
         recurrenceBasis: input.basis,
-        recurrenceNextDate: input.nextDate,
+        recurrenceNextDate: nextDate,
         updatedAt: new Date(),
       })
       .where(eq(objects.id, objectId));
