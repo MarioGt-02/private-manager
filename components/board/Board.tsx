@@ -16,6 +16,7 @@ import type { ManagedObject, RecurrenceConfig } from "@/lib/types/object";
 import type { RecurrenceFormInput } from "@/components/recurrence/RecurrenceControls";
 import { Column } from "./Column";
 import { ObjectCardOverlay } from "./ObjectCard";
+import { MobileBoard } from "./MobileBoard";
 import { CancelDropZone, CANCEL_DROP_ID, ARCHIVE_DROP_ID, OBJECT_DROP_PREFIX, boardCollisionDetection } from "./CancelDropZone";
 import { CancelObjectDialog } from "./CancelObjectDialog";
 import { ObjectDrawer } from "./ObjectDrawer";
@@ -98,6 +99,9 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilterValue>(allCategoryFilter);
   const [categoryFilterHydrated, setCategoryFilterHydrated] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileStatus, setMobileStatus] = useState<ObjectStatus>(() => initialObjects.some((object) => object.status === "doing") ? "doing" : initialObjects.some((object) => object.status === "ready") ? "ready" : "idea");
+  const [mobileCreateOpen, setMobileCreateOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const boardScrollRef = useRef<HTMLDivElement>(null);
   const [boardScrollEdges, setBoardScrollEdges] = useState({ left: false, right: false });
 
@@ -250,6 +254,24 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   function handleDragCancel() {
     didDrag.current = false;
     setActiveId(null);
+  }
+
+  async function handleMobileMoveStatus(objectId: string, targetStatus: ObjectStatus) {
+    const object = objects.find((item) => item.id === objectId);
+    if (!object || object.status === targetStatus) return;
+    const previousObjects = objects;
+    const reordered = reorderBoardObjects(objects, objectId, targetStatus, null, false, new Set(visibleObjects.map((item) => item.id)));
+    if (!reordered) return;
+    setObjects(reordered.objects);
+    setError(null);
+    try {
+      const savedObjects = await reorderObjectsAction({ objectId, targetStatus, orderedObjectIds: reordered.orderedObjectIds });
+      setObjects(savedObjects);
+      refreshActivity(objectId);
+    } catch {
+      setObjects(previousObjects);
+      setError("Could not move the Object. Please try again.");
+    }
   }
 
   async function openUpcomingOccurrences() {
@@ -424,7 +446,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-white">
-      <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+      <header className="hidden min-h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 md:flex">
         <div>
           <h1 className="text-base font-semibold text-slate-900">
             Private Manager
@@ -453,6 +475,21 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
         </div>
       </header>
 
+      <header className="flex shrink-0 flex-col gap-2 border-b border-slate-200 bg-white px-3 py-2 md:hidden">
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1"><h1 className="truncate text-base font-semibold text-slate-900">Private Manager</h1><p className="truncate text-[11px] text-slate-500">One object. One complete thing.</p></div>
+          <div className="relative">
+            <button type="button" aria-label="Create Object" aria-expanded={mobileCreateOpen} className="grid h-10 w-10 place-items-center rounded-lg bg-blue-600 text-xl text-white" onClick={() => { setMobileCreateOpen((value) => !value); setMobileMoreOpen(false); }}>+</button>
+            {mobileCreateOpen && <div role="menu" className="absolute right-0 top-11 z-40 min-w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl"><p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Create Object</p><button type="button" className="mobile-menu-item" onClick={() => { setIsAICreateOpen(true); setMobileCreateOpen(false); }}>✨ AI Create</button><button type="button" className="mobile-menu-item" onClick={() => { setIsQuickCreateOpen(true); setMobileCreateOpen(false); }}>⚡ Quick Create</button><button type="button" className="mobile-menu-item" onClick={() => { setIsManualCreateOpen(true); setMobileCreateOpen(false); }}>＋ Manual Create</button></div>}
+          </div>
+          <div className="relative">
+            <button type="button" aria-label="More Board actions" aria-expanded={mobileMoreOpen} className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 text-xl text-slate-600" onClick={() => { setMobileMoreOpen((value) => !value); setMobileCreateOpen(false); }}>⋮</button>
+            {mobileMoreOpen && <div role="menu" className="absolute right-0 top-11 z-40 min-w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl"><button type="button" className="mobile-menu-item" onClick={() => { setManagingCategories(true); setMobileMoreOpen(false); }}>Categories</button><DataExport buttonClassName="mobile-menu-item w-full text-left" /><form action="/api/auth/logout" method="post"><button type="submit" className="mobile-menu-item w-full">Logout</button></form></div>}
+          </div>
+        </div>
+        <ObjectSearch value={searchQuery} onChange={setSearchQuery} resultCount={visibleObjects.length} wide />
+      </header>
+
       <div className="relative min-h-0 flex-1">
         {error && (
           <div
@@ -478,7 +515,8 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div ref={boardScrollRef} onScroll={updateBoardScrollEdges} className="flex h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 pb-20 sm:gap-4 sm:p-5 sm:pb-20">
+          <MobileBoard objects={visibleObjects} activeStatus={mobileStatus} onStatusChange={setMobileStatus} onSelect={handleSelect} selectedId={selectedId} minimizedIds={minimizedIds} pendingIds={pendingCompleteIds} onToggleMinimize={toggleMinimized} onCompleteNextAction={handleCompleteNextAction} onMoveStatus={handleMobileMoveStatus} />
+          <div ref={boardScrollRef} onScroll={updateBoardScrollEdges} className="hidden h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 pb-20 sm:gap-4 sm:p-5 sm:pb-20 md:flex">
             {COLUMNS.map((column) => (
               <Column
                 key={column.id}
@@ -509,7 +547,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           disabled={!boardScrollEdges.left}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => scrollBoard(-1)}
-          className="absolute left-2 top-1/2 z-20 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-md transition hover:bg-white disabled:pointer-events-none disabled:opacity-0"
+          className="absolute left-2 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-md transition hover:bg-white disabled:pointer-events-none disabled:opacity-0 md:grid"
         >‹</button>
         <button
           type="button"
@@ -518,7 +556,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           disabled={!boardScrollEdges.right}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => scrollBoard(1)}
-          className="absolute right-2 top-1/2 z-20 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-md transition hover:bg-white disabled:pointer-events-none disabled:opacity-0"
+          className="absolute right-2 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white/95 text-xl text-slate-700 shadow-md transition hover:bg-white disabled:pointer-events-none disabled:opacity-0 md:grid"
         >›</button>
       </div>
 

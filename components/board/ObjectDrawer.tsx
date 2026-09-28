@@ -55,15 +55,15 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
     catch { setLifecycleError("删除失败，对象仍保留，请重试。"); }
   }
   return <WorkspaceDialog label="Object details" size="workspace" onClose={onClose} busy={pending}>
-    <header className="flex shrink-0 flex-col gap-2 border-b border-slate-200 px-5 py-3 sm:px-6">
+    <header className="mobile-workspace-header flex shrink-0 flex-col gap-2 border-b border-slate-200 px-5 py-3 sm:px-6">
       <div className="flex items-start justify-between gap-3">
         <div><p className="section-label">Object workspace</p><p className="mt-0.5 text-xs text-slate-500">One complete thing.</p></div>
-        <div className="flex flex-wrap items-center justify-end gap-2" aria-label="Object actions">
+        <div className="workspace-actions flex flex-wrap items-center justify-end gap-2" aria-label="Object actions">
           {archived ? <button type="button" disabled={pending} className="btn-secondary" onClick={() => void lifecycle("restore")}>{pending ? "Restoring…" : "Restore to Board"}</button> : <>
-            <button type="button" disabled={pending} className="btn-secondary" aria-label="Archive Object" title="存档，之后可以恢复" onClick={() => void lifecycle("archive")}>存档</button>
+            <button type="button" disabled={pending} className="workspace-desktop-action btn-secondary" aria-label="Archive Object" title="存档，之后可以恢复" onClick={() => void lifecycle("archive")}>存档</button>
           </>}
-          <button type="button" disabled={pending} className="btn-danger" aria-label="Delete Object" title="永久删除对象" onClick={() => setConfirmDelete(true)}>删除</button>
-          <button type="button" autoFocus className="btn-secondary" aria-label="Close Object Drawer" disabled={pending} onClick={onClose}>Close <span aria-hidden="true">×</span></button>
+          <button type="button" disabled={pending} className="workspace-desktop-action btn-danger" aria-label="Delete Object" title="永久删除对象" onClick={() => setConfirmDelete(true)}>删除</button>
+          <button type="button" autoFocus className="workspace-close btn-secondary" aria-label="Close Object Drawer" disabled={pending} onClick={onClose}>Close <span aria-hidden="true">×</span></button>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">

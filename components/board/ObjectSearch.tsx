@@ -6,8 +6,9 @@ import { shouldClearObjectSearch, shouldFocusObjectSearch } from "@/lib/objects/
 export const ObjectSearch = forwardRef<HTMLInputElement, {
   value: string;
   resultCount?: number;
+  wide?: boolean;
   onChange: (value: string) => void;
-}>(({ value, resultCount, onChange }, forwardedRef) => {
+}>(({ value, resultCount, wide = false, onChange }, forwardedRef) => {
   const localRef = useRef<HTMLInputElement>(null);
   const inputRef = (node: HTMLInputElement | null) => {
     localRef.current = node;
@@ -27,7 +28,7 @@ export const ObjectSearch = forwardRef<HTMLInputElement, {
 
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <div className="relative flex min-w-[12rem] max-w-[21rem] flex-1 items-center sm:w-64 sm:flex-none">
+      <div className={`relative flex min-w-[12rem] flex-1 items-center ${wide ? "max-w-none" : "max-w-[21rem] sm:w-64 sm:flex-none"}`}>
         <span aria-hidden="true" className="pointer-events-none absolute left-2.5 text-slate-400">⌕</span>
         <input
           ref={inputRef}

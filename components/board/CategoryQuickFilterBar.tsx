@@ -17,7 +17,7 @@ export function CategoryQuickFilterBar({ categories, value, onChange }: {
   }
 
   return (
-    <nav aria-label="Quick category filter" className="shrink-0 border-t border-slate-200 bg-white px-3 py-1.5 sm:px-5">
+    <nav aria-label="Quick category filter" className="quick-category-filter shrink-0 border-t border-slate-200 bg-white px-3 py-1.5 sm:px-5">
       <div className="grid w-full min-w-max overflow-x-auto" style={{ gridTemplateColumns: `repeat(${categories.length + 1}, minmax(0, 1fr))` }}>
         {categories.map((category) => {
           const active = selectedIds.includes(category.id);

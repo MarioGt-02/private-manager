@@ -105,8 +105,8 @@ const gridProps = {
 describe("Object Workspace layout", () => {
   it("renders as a wide workspace dialog", () => {
     const markup = drawerMarkup();
-    expect(markup).toContain('class="workspace-dialog"');
     expect(markup).toContain('data-size="workspace"');
+    expect(markup).toContain('class="workspace-dialog"');
     expect(markup).toContain('aria-label="Object details"');
   });
 
