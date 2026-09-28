@@ -36,6 +36,8 @@ const labels: Record<string, string> = {
   recurrence_updated: "Recurrence updated",
   recurrence_disabled: "Recurrence stopped",
   recurrence_generated: "Next occurrence generated",
+  recurrence_reopened: "Recurring Object reopened",
+  recurrence_next_cancelled: "Next occurrence cancelled",
   occurrence_note_updated: "Occurrence note updated",
   table_created: "Table created",
   table_renamed: "Table renamed",

@@ -13,7 +13,7 @@ vi.mock("@/lib/db/index", () => ({ getDb: () => db }));
 vi.mock("@/lib/auth/require-auth", () => ({ requireAuth: mocks.auth }));
 vi.mock("@/lib/ai/openai", () => ({ getOpenAIClient: mocks.openai }));
 
-import { createObject, getObject, getObjects, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
+import { createObject, getObject, getObjects, reorderObjects, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
 import { addDependency } from "@/lib/db/dependencies";
 
 beforeAll(async () => {
@@ -144,6 +144,40 @@ describe("Recurring Objects", () => {
     await updateObjectRecurrence(a.id, { frequency: "yearly", interval: 1, basis: "completion_date", nextDate: null });
 
     expect((await getObject(a.id))!.recurrence?.nextDate).toBe("2027-10-31");
+  });
+
+  it("reopens completion-date recurrence by cancelling the generated occurrence without deleting it", async () => {
+    const a = await make("Car wash");
+    await updateObjectRecurrence(a.id, { frequency: "monthly", interval: 1, basis: "completion_date", nextDate: null });
+    await updateObjectStatus(a.id, "done");
+    const next = (await getObjects()).find((object) => object.id !== a.id)!;
+
+    await reorderObjects(a.id, "doing", [a.id]);
+
+    const reopened = await getObject(a.id);
+    const cancelled = await getObject(next.id);
+    expect(reopened?.status).toBe("doing");
+    expect(reopened?.recurrence?.nextOccurrenceId).toBeNull();
+    expect(reopened?.recurrence?.nextDate).toBeNull();
+    expect(cancelled?.archivedAt).not.toBeNull();
+    expect(cancelled?.cancelledAt).not.toBeNull();
+  });
+
+  it("reopens scheduled-date recurrence while preserving its next occurrence", async () => {
+    const a = await make("Bollo");
+    await updateObjectRecurrence(a.id, { frequency: "yearly", interval: 1, basis: "scheduled_date", nextDate: "2026-10-31" });
+    await updateObjectStatus(a.id, "done");
+    const next = (await getObjects()).find((object) => object.id !== a.id)!;
+
+    await updateObjectStatus(a.id, "doing");
+
+    const reopened = await getObject(a.id);
+    const preserved = await getObject(next.id);
+    expect(reopened?.status).toBe("doing");
+    expect(reopened?.recurrence?.nextOccurrenceId).toBe(next.id);
+    expect(reopened?.recurrence?.nextDate).toBe("2027-10-31");
+    expect(preserved?.archivedAt).toBeNull();
+    expect(preserved?.cancelledAt).toBeNull();
   });
 
   it("does not copy dependencies to the next occurrence", async () => {

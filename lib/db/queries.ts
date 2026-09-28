@@ -336,6 +336,50 @@ export async function generateNextOccurrence(tx: Tx, objectId: string): Promise<
   return nextId;
 }
 
+/**
+ * Reopen a completed recurring occurrence without deleting its history.
+ * Completion-date recurrence cancels the generated next occurrence because
+ * the next date was derived from a completion that is now being undone.
+ * Scheduled-date recurrence keeps its already scheduled next occurrence.
+ */
+async function reopenRecurringOccurrence(tx: Tx, current: ObjectRow, targetStatus: ObjectStatus): Promise<void> {
+  if (current.status !== "done" || targetStatus === "done" || !current.recurrenceFrequency) return;
+
+  const now = new Date();
+  if (current.recurrenceBasis === "completion_date") {
+    if (current.nextOccurrenceId) {
+      await tx
+        .update(objects)
+        .set({ archivedAt: now, cancelledAt: now, updatedAt: now })
+        .where(eq(objects.id, current.nextOccurrenceId));
+      await tx.insert(objectUpdates).values({
+        id: randomUUID(),
+        objectId: current.nextOccurrenceId,
+        type: "recurrence_next_cancelled",
+        content: `Cancelled next occurrence because ${current.title} was reopened.`,
+      });
+    }
+    await tx
+      .update(objects)
+      .set({ nextOccurrenceId: null, recurrenceNextDate: null, updatedAt: now })
+      .where(eq(objects.id, current.id));
+    await tx.insert(objectUpdates).values({
+      id: randomUUID(),
+      objectId: current.id,
+      type: "recurrence_reopened",
+      content: "Reopened recurring Object; cancelled the next completion-based occurrence.",
+    });
+    return;
+  }
+
+  await tx.insert(objectUpdates).values({
+    id: randomUUID(),
+    objectId: current.id,
+    type: "recurrence_reopened",
+    content: "Reopened recurring Object; preserved the scheduled next occurrence.",
+  });
+}
+
 export interface RecurrenceInput {
   frequency: RecurrenceFrequency;
   interval: number;
@@ -427,6 +471,7 @@ export async function updateObjectStatus(
       .where(eq(objects.id, id));
 
     if (status === "done") await generateNextOccurrence(tx, id);
+    else if (current.status === "done") await reopenRecurringOccurrence(tx, current, status);
 
     await tx.insert(objectUpdates).values({
       id: randomUUID(),
@@ -493,6 +538,7 @@ export async function reorderObjects(
         await tx.update(objects).set({ position }).where(eq(objects.id, row.id));
       }
       if (targetStatus === "done") await generateNextOccurrence(tx, objectId);
+      else if (moving.status === "done") await reopenRecurringOccurrence(tx, moving, targetStatus);
       await tx.insert(objectUpdates).values({
         id: randomUUID(), objectId, type: "status_changed", content: targetStatus,
       });
