@@ -14,7 +14,7 @@ vi.mock("@/lib/db/index", () => ({ getDb: () => db }));
 vi.mock("@/lib/auth/require-auth", () => ({ requireAuth: mocks.auth }));
 vi.mock("@/lib/ai/openai", () => ({ getOpenAIClient: mocks.openai }));
 
-import { createObject, getBoardObjects, getObject, getObjects, reorderObjects, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
+import { createObject, getBoardObjects, getObject, getObjects, getUpcomingOccurrences, reorderObjects, updateObjectRecurrence, updateObjectStatus, updateOccurrenceNote } from "@/lib/db/queries";
 import { addDependency } from "@/lib/db/dependencies";
 
 beforeAll(async () => {
@@ -93,9 +93,11 @@ describe("Recurring Objects", () => {
     expect(next.recurrence?.nextDate).toBeTruthy();
     expect(next.recurrence!.nextDate! > today()).toBe(true);
     expect((await getBoardObjects()).map((object) => object.id)).toEqual([a.id]);
+    expect(await getUpcomingOccurrences()).toEqual([expect.objectContaining({ id: next.id, nextDate: next.recurrence!.nextDate })]);
 
     await db.update(schema.objects).set({ recurrenceNextDate: today() }).where(eq(schema.objects.id, next.id));
     expect((await getBoardObjects()).map((object) => object.id)).toContain(next.id);
+    expect(await getUpcomingOccurrences()).toEqual([]);
   });
 
   it("preserves a hidden future occurrence when visible Idea Objects are reordered", async () => {

@@ -44,6 +44,7 @@ import { CategoryManager } from "@/components/categories/CategoryManager";
 import { CategoryFilter } from "./CategoryFilter";
 import { CategoryQuickFilterBar } from "./CategoryQuickFilterBar";
 import { ObjectSearch } from "./ObjectSearch";
+import { UpcomingOccurrencesDialog } from "./UpcomingOccurrencesDialog";
 import {
   CATEGORY_FILTER_STORAGE_KEY,
   allCategoryFilter,
@@ -80,6 +81,10 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [objects, setObjects] = useState<ManagedObject[]>(initialObjects.filter((object) => !object.archivedAt));
   const [error, setError] = useState<string | null>(initialError);
   const [archiveStatus, setArchiveStatus] = useState<ObjectStatus | null>(null);
+  const [showUpcoming, setShowUpcoming] = useState(false);
+  const [upcomingOccurrences, setUpcomingOccurrences] = useState<import("@/lib/db/queries").UpcomingOccurrenceSummary[] | null>(null);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
+  const [upcomingError, setUpcomingError] = useState(false);
   const [historyVersion, setHistoryVersion] = useState(0);
   const [historicalObject, setHistoricalObject] = useState<ManagedObject | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -214,6 +219,22 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   function handleDragCancel() {
     didDrag.current = false;
     setActiveId(null);
+  }
+
+  async function openUpcomingOccurrences() {
+    setShowUpcoming(true);
+    setUpcomingLoading(true);
+    setUpcomingError(false);
+    try {
+      const response = await fetch("/api/objects/upcoming", { cache: "no-store" });
+      if (!response.ok) throw new Error("Could not load upcoming occurrences.");
+      const data = await response.json();
+      setUpcomingOccurrences(data.occurrences);
+    } catch {
+      setUpcomingError(true);
+    } finally {
+      setUpcomingLoading(false);
+    }
   }
 
   async function handleToggleChecklist(objectId: string, itemId: string) {
@@ -439,6 +460,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
                 onToggleMinimize={toggleMinimized}
                 onCompleteNextAction={handleCompleteNextAction}
                 onArchive={() => { setArchiveStatus(column.id); setSelectedId(null); setHistoricalObject(null); }}
+                onUpcoming={column.id === "idea" ? () => void openUpcomingOccurrences() : undefined}
               />
             ))}
             {searchQuery.trim() && visibleObjects.length === 0 && <p role="status" className="pointer-events-none fixed left-1/2 top-20 z-10 -translate-x-1/2 rounded-md border border-slate-200 bg-white/90 px-3 py-1.5 text-xs text-slate-500 shadow-sm">No objects match this search</p>}
@@ -454,6 +476,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
       <CategoryQuickFilterBar categories={categories} value={effectiveCategoryFilter} onChange={setCategoryFilter} />
 
       {archiveStatus && <ArchiveDrawer key={archiveStatus} status={archiveStatus} version={historyVersion} onClose={() => setArchiveStatus(null)} onOpen={openArchivedObject} onRestore={(id) => handleLifecycle(id, "restore")} onDelete={handleDeleteObject} />}
+      {showUpcoming && <UpcomingOccurrencesDialog occurrences={upcomingOccurrences} loading={upcomingLoading} error={upcomingError} onClose={() => setShowUpcoming(false)} />}
       <ObjectDrawer
         onDeleteObject={handleDeleteObject}
         onCategoryChange={async (objectId, categoryId) => {

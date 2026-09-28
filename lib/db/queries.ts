@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNull, lte, ne, or, getTableColumns } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, isNotNull, isNull, lte, ne, or, getTableColumns } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
 import { categories, checklistItems, objectDependencies, objects, objectUpdates } from "./schema";
@@ -105,6 +105,30 @@ export async function getObjects(): Promise<ManagedObject[]> {
 /** Board payload: future generated occurrences are kept in storage but wait until due. */
 export async function getBoardObjects(): Promise<ManagedObject[]> {
   return loadObjects(today());
+}
+
+export interface UpcomingOccurrenceSummary {
+  id: string;
+  title: string;
+  category: string | null;
+  categoryId: string | null;
+  nextDate: string;
+}
+
+export async function getUpcomingOccurrences(): Promise<UpcomingOccurrenceSummary[]> {
+  const rows = await getDb().select({
+    id: objects.id,
+    title: objects.title,
+    category: objects.category,
+    categoryId: objects.categoryId,
+    nextDate: objects.recurrenceNextDate,
+  }).from(objects).where(and(
+    isNull(objects.archivedAt),
+    eq(objects.status, "idea"),
+    isNotNull(objects.previousOccurrenceId),
+    gt(objects.recurrenceNextDate, today()),
+  )).orderBy(asc(objects.recurrenceNextDate), asc(objects.position), asc(objects.createdAt));
+  return rows.filter((row): row is typeof row & { nextDate: string } => row.nextDate !== null);
 }
 
 async function loadObjects(boardDate?: string): Promise<ManagedObject[]> {

@@ -250,6 +250,7 @@ describe("Board regression", () => {
   it("still renders the board with its columns and Object card", () => {
     const markup = renderToStaticMarkup(createElement(Board, { initialObjects: [object] }));
     for (const label of ["Private Manager", "Idea", "Ready", "Doing", "Waiting", "Done"]) expect(markup).toContain(label);
+    expect(markup).toContain('aria-label="Upcoming occurrences"');
     expect(markup).toContain("Audi A3 定期保养 — 2026");
   });
 });
