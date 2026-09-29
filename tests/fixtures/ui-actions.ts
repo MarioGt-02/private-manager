@@ -8,6 +8,7 @@ export const fixture = {
   objects: [{ id: "fixture-object", title: text, status: "doing", position: 0, category: null, archivedAt: null, cancelledAt: null, goal: "整理设备，让每天使用的工具伸手可及。".repeat(18), currentState: "安装位置已确定，工具已经备齐。".repeat(12), nextAction: "Prepare wall mounting hardware", checklist: Array.from({length: 22}, (_, i) => ({ id: `fixture-item-${i}`, title: i === 1 ? "Prepare wall mounting hardware" : `步骤 ${i + 1} · ${"A long checklist item with 中文内容 ".repeat(i === 4 ? 8 : 1)}`, completed: i === 0, position: i })), unresolvedDependencies: 0, recurrence: null, occurrenceNote: null } as ManagedObject],
 };
 Object.assign(window, { uiFixture: fixture });
+for (const object of fixture.objects) for (const item of object.checklist) { item.parentId ??= null; item.estimatedMinutes ??= null; }
 function current() { return fixture.objects[0]; }
 export async function createManualObjectAction(input: unknown) {
   const data = manualCreateObjectSchema.parse(input);
@@ -40,3 +41,5 @@ export async function addChecklistItemAction(_id:string,title:string) { const it
 export async function renameChecklistItemAction({itemId,title}:{itemId:string;title:string}) { await mutate("checklist_item_renamed", () => { current().checklist.find((item)=>item.id===itemId)!.title = title; }); return {...current().checklist.find((item)=>item.id===itemId)!}; }
 export async function deleteChecklistItemAction({itemId}:{itemId:string}) { await mutate("checklist_item_deleted", () => { current().checklist = current().checklist.filter((item)=>item.id!==itemId); }); }
 export async function reorderChecklistItemsAction({orderedItemIds}:{orderedItemIds:string[]}) { await mutate("checklist_reordered", () => { current().checklist = orderedItemIds.map((id,position)=>({...current().checklist.find((item)=>item.id===id)!,position})); }); return structuredClone(current().checklist); }
+export async function updateObjectRecurrenceAction(_id: string, config: import("@/lib/types/object").RecurrenceFormInput | null) { await mutate("recurrence_changed", () => { current().recurrence = config ? { ...config, seriesId: current().id, previousOccurrenceId: null, nextOccurrenceId: null } : null; }); return structuredClone(current()); }
+export async function updateOccurrenceNoteAction(_id: string, note: string) { await mutate("occurrence_note_changed", () => { current().occurrenceNote = note; }); return structuredClone(current()); }

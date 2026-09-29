@@ -24,6 +24,7 @@ function toChecklistItem(row: ChecklistRow): ChecklistItem {
     id: row.id,
     title: row.title,
     completed: row.completed,
+    estimatedMinutes: row.estimatedMinutes ?? null,
     parentId: row.parentId ?? null,
     position: row.position,
   };
@@ -395,10 +396,11 @@ export async function generateNextOccurrence(tx: Tx, objectId: string): Promise<
     title: item.title,
     completed: false,
     position: item.position,
+    estimatedMinutes: item.estimatedMinutes,
   }));
   if (insertRows.length) {
     await tx.insert(checklistItems).values(insertRows);
-    const nextActionItems: ChecklistItem[] = insertRows.map(({ id, parentId, title, completed, position }) => ({ id, parentId, title, completed, position }));
+    const nextActionItems: ChecklistItem[] = insertRows;
     await tx.update(objects).set({ nextAction: deriveNextAction(nextActionItems) }).where(eq(objects.id, nextId));
   }
 

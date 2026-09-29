@@ -2,6 +2,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { DragEvent, ReactNode } from "react";
 import type { ChecklistItem } from "@/lib/types/object";
+import { EstimateEditor } from "./EstimateEditor";
 
 interface ChecklistProps {
   items: ChecklistItem[];
@@ -11,9 +12,10 @@ interface ChecklistProps {
   onDelete: (id: string) => Promise<void>;
   onAdd: (title: string, parentId?: string | null) => Promise<void>;
   onReorder: (parentId: string | null, ids: string[]) => Promise<void>;
+  onEstimate?: (id: string, minutes: number | null) => Promise<void>;
 }
 
-export function Checklist({ items, disabled, onToggle, onRename, onDelete, onAdd, onReorder }: ChecklistProps) {
+export function Checklist({ items, disabled, onToggle, onRename, onDelete, onAdd, onReorder, onEstimate }: ChecklistProps) {
   const [topTitle, setTopTitle] = useState("");
   const [childParent, setChildParent] = useState<string | null>(null);
   const [childTitle, setChildTitle] = useState("");
@@ -168,6 +170,7 @@ export function Checklist({ items, disabled, onToggle, onRename, onDelete, onAdd
             }}
             className="h-4 w-4 shrink-0 cursor-pointer accent-indigo-600 disabled:cursor-default"
           />
+          <div className="flex min-w-0 flex-1 flex-wrap items-center">
           <InlineTitle
             value={item.title}
             completed={item.completed}
@@ -177,6 +180,8 @@ export function Checklist({ items, disabled, onToggle, onRename, onDelete, onAdd
               if (!ok) throw new Error("Save failed");
             }}
           />
+          {!isParent && onEstimate && <EstimateEditor title={item.title} value={item.estimatedMinutes ?? null} disabled={disabled || busy} onSave={async (minutes) => { const ok = await perform(() => onEstimate(item.id, minutes)); if (!ok) throw new Error("Save failed"); }} />}
+          </div>
           <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
             <IconButton label={`Move ${item.title} up`} disabled={disabled || busy || siblings.findIndex((s) => s.id === item.id) === 0} onClick={() => move(item, siblings, -1)}>↑</IconButton>
             <IconButton label={`Move ${item.title} down`} disabled={disabled || busy || siblings.findIndex((s) => s.id === item.id) === siblings.length - 1} onClick={() => move(item, siblings, 1)}>↓</IconButton>

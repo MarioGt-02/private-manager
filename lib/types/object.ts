@@ -14,6 +14,8 @@ export interface ChecklistItem {
   parentId: string | null;
   title: string;
   completed: boolean;
+  /** Missing only in legacy client fixtures; persisted reads always return null or minutes. */
+  estimatedMinutes?: number | null;
   position: number;
 }
 

@@ -3,6 +3,8 @@ import { useRef, useState } from "react";
 import { ActivityLog } from "@/components/activity/ActivityLog";
 import { Checklist } from "@/components/checklist/Checklist";
 import { ObjectAI } from "@/components/ai/ObjectAI";
+import { TimeEstimates } from "@/components/ai/TimeEstimates";
+import { ApiError, parseErrorDetail } from "@/lib/errors/client";
 import { InlineEditableField } from "@/components/ui/InlineEditableField";
 import { WorkspaceDialog } from "@/components/ui/WorkspaceDialog";
 import { CategorySelect } from "@/components/categories/CategorySelect";
@@ -29,11 +31,12 @@ interface ObjectDrawerProps {
   onUpdateNote: (objectId: string, note: string) => Promise<void>;
   /** Refreshes the Drawer Activity list after a Table structural change. */
   onRefreshActivity: (objectId: string) => void;
+  onObjectUpdated?: (object: ManagedObject) => void;
 }
 export function ObjectDrawer(props: ObjectDrawerProps) {
   return props.object ? <DrawerContent key={props.object.id} {...props} object={props.object} /> : null;
 }
-function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject, onOpenObject, onUpdateRecurrence, onUpdateNote, onRefreshActivity }: ObjectDrawerProps & { object: ManagedObject }) {
+function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, onEditField, onAddChecklist, onRenameChecklist, onDeleteChecklist, onReorderChecklist, onApplyProgress, onApplyReplan, onLifecycle, onCategoryChange, onDeleteObject, onOpenObject, onUpdateRecurrence, onUpdateNote, onRefreshActivity, onObjectUpdated }: ObjectDrawerProps & { object: ManagedObject }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lifecycleError, setLifecycleError] = useState("");
   const archived = !!object.archivedAt;
@@ -98,12 +101,19 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
         <section aria-label="Checklist" className="mt-4 border-t border-slate-200 pt-3">
           <div className="mb-1 flex items-center justify-between"><h3 className="section-label">Checklist</h3><span className="text-xs tabular-nums text-slate-500">{completed} / {object.checklist.length}</span></div>
           <Checklist items={object.checklist} disabled={pending || archived}
+            onEstimate={(itemId, estimatedMinutes) => manual(async () => {
+              const response = await fetch(`/api/objects/${encodeURIComponent(object.id)}/checklist-estimate`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId, estimatedMinutes }) });
+              const data = await response.json().catch(() => null);
+              if (!response.ok) throw new ApiError(parseErrorDetail(data, "Could not save estimate."));
+              onObjectUpdated?.(data.object); onRefreshActivity(object.id);
+            })}
             onToggle={(id) => manual(() => onToggleChecklist(object.id, id))}
             onAdd={(title, parentId) => manual(() => onAddChecklist(object.id, title, parentId))}
             onRename={(id, title) => manual(() => onRenameChecklist(object.id, id, title))}
             onDelete={(id) => manual(() => onDeleteChecklist(object.id, id))}
             onReorder={(parentId, ids) => manual(() => onReorderChecklist(object.id, parentId, ids))} />
       </section>
+      <TimeEstimates object={object} disabled={pending || archived} onPendingChange={setPending} onUpdated={(saved) => { onObjectUpdated?.(saved); onRefreshActivity(object.id); }} />
       <TablesSection objectId={object.id} recurring={!!object.recurrence} disabled={pending || archived} onActivityChange={() => onRefreshActivity(object.id)} />
       <DependenciesSection objectId={object.id} disabled={pending || archived} onOpenObject={onOpenObject} />
       <section aria-label="Recurring" className="mt-4 border-t border-slate-200 pt-3">

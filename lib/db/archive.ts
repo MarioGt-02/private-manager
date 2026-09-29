@@ -27,6 +27,6 @@ export async function changeObjectLifecycle(objectId: string, action: LifecycleA
       await tx.insert(objectUpdates).values({ id: randomUUID(), objectId, type: action === "archive" ? "object_archived" : action === "cancel" ? "object_cancelled" : "object_restored", content: action === "restore" ? "Restored Object to its previous workflow column." : action === "cancel" ? "Cancelled and archived Object; workflow status preserved." : "Archived Object; workflow status preserved." });
     }
     const checklist = await tx.select().from(checklistItems).where(eq(checklistItems.objectId, objectId)).orderBy(asc(checklistItems.position));
-    return toManagedObject(row, checklist.map(({ id, title, completed, position, parentId }) => ({ id, title, completed, position, parentId })));
+    return toManagedObject(row, checklist.map(({ id, title, completed, position, parentId, estimatedMinutes }) => ({ id, title, completed, position, parentId, estimatedMinutes })));
   });
 }

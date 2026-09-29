@@ -1,0 +1,1 @@
+ALTER TABLE "checklist_items" ADD COLUMN "estimated_minutes" integer;

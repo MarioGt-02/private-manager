@@ -30,6 +30,8 @@ const labels: Record<string, string> = {
   checklist_reordered: "Checklist reordered",
   ai_progress_update: "AI Progress Update",
   ai_replan: "AI Replan",
+  time_estimates_applied: "Time estimates applied",
+  time_estimates_cleared: "Time estimates cleared",
   dependency_added: "Dependency added",
   dependency_removed: "Dependency removed",
   recurrence_enabled: "Recurrence enabled",

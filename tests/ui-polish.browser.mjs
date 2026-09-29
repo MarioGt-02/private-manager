@@ -25,10 +25,14 @@ await page.route('**/api/**',async route=>{
  const url=route.request().url(); const state=await page.evaluate(()=>structuredClone(window.uiFixture)); const object=state.objects[0];
  let body={}; let status=200;
  if(url.endsWith('/activity')){ activityReads++; body={updates:state.events.slice(0,30)}; }
+ else if(url.endsWith('/categories')) body={categories:[]};
+ else if(url.endsWith('/tables')) body={tables:[]};
+ else if(url.endsWith('/dependencies')) body={dependsOn:[],blocking:[]};
+ else if(url.endsWith('/upcoming')) body={occurrences:[]};
  else if(url.endsWith('/progress/analyze')){analyzes++;body={update:{currentState:'Mounting hardware prepared.',nextAction:'This AI text must not be displayed',completedItemIds:['fixture-item-1'],reopenedItemIds:[],newChecklistItems:[{title:'Test mounting strength'}],summary:'Prepared hardware.'}};}
  else if(url.endsWith('/replan/analyze')){analyzes++;body={proposal:{title:'免打孔安装电竞洞洞板',goal:'Use removable desk clamps',currentState:'Wall drilling is not allowed.',reasonSummary:'Rental wall constraint.',checklist:object.checklist.slice(0,3).map((item,i)=>({sourceItemId:item.id,title:i===1?'Prepare desk clamps':item.title,completed:item.completed,position:i,changeType:i===1?'modify':'keep'})).concat([{sourceItemId:null,title:'Test clamp load',completed:false,position:3,changeType:'add'}]),removedItemIds:object.checklist.slice(3).map(item=>item.id),summary:'Replanned to desk clamps.'}};}
  else if(url.endsWith('/apply')){applies++;if(failApply){status=500;body={error:{message:'Simulated failure'}};}else{body={object:{...object,currentState:'Confirmed preview applied.'}};}}
- else if(url.endsWith('/create-object/chat')){analyzes++;createCalls++;body={message:'Here is your draft.',phase:'proposal',draft:{title:'Create a desk video',goal:'Explain the build',currentState:'Outline complete',nextAction:'Record camera test',checklist:[{title:'Record camera test',completed:false,position:0}]}};if(createCalls===1)body={message:'Please review the idea. '+ '多语言长回复 — clarify the complete outcome. '.repeat(150),phase:'clarifying',draft:null};}
+ else if(url.endsWith('/create-object/chat')){analyzes++;createCalls++;body={message:'Here is your draft.',phase:'proposal',draft:{title:'Create a desk video',goal:'Explain the build',currentState:'Outline complete',nextAction:'Record camera test',checklist:[{title:'Record camera test',completed:false,position:0,children:[]}]}};if(createCalls===1)body={message:'Please review the idea. '+ '多语言长回复 — clarify the complete outcome. '.repeat(150),phase:'clarifying',draft:null};}
  else if(url.endsWith('/create-object/finalize')){const data=route.request().postDataJSON();body={object:{...data.draft,id:'fixture-created',status:'idea',checklist:data.draft.checklist.map((i,n)=>({...i,id:'created-'+n}))}};}
  else throw new Error('Unexpected API request');
  await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
@@ -53,23 +57,23 @@ try {
  await dialog.getByText('Could not save changes. Please try again.').waitFor();
  assert.equal(await dialog.getByLabel('Goal',{exact:true}).inputValue(),'Unsaved goal text');
  await dialog.getByLabel('Goal',{exact:true}).press('Escape');assert.equal(await dialog.isVisible(),true);
- await dialog.getByRole('checkbox').first().uncheck();
+ await dialog.getByRole('checkbox',{name:'Complete: Prepare wall mounting hardware',exact:true}).click();
  await page.waitForFunction(()=>window.uiFixture.events.some(e=>e.type==='checklist_changed'));
- await dialog.getByRole('textbox',{name:'Add checklist item',exact:true}).fill('Create thumbnail');
- await dialog.getByRole('button',{name:'Add item',exact:true}).click();
+ await dialog.getByPlaceholder('Add checklist item',{exact:true}).fill('Create thumbnail');
+ await dialog.getByRole('button',{name:'Add',exact:true}).click();
  await dialog.getByText('Create thumbnail',{exact:true}).waitFor();
- const row=dialog.locator('li').filter({hasText:'Create thumbnail'});
+ const row=dialog.getByRole('checkbox',{name:'Complete: Create thumbnail',exact:true}).locator('..');
  await row.getByRole('button',{name:/Move .* up/}).click();
  await page.waitForFunction(()=>window.uiFixture.objects[0].checklist.at(-2)?.title==='Create thumbnail');
- await row.getByRole('button',{name:/Edit Checklist item/}).click();
+ await row.getByRole('button',{name:'Create thumbnail',exact:true}).click();
  await row.getByRole('textbox').fill('Design thumbnail');
- await dialog.getByRole('button',{name:'Save',exact:true}).click();
+ await row.getByRole('textbox').press('Enter');
  await dialog.getByText('Design thumbnail',{exact:true}).waitFor();
- await dialog.locator('li').filter({hasText:'Design thumbnail'}).getByRole('button',{name:/Delete/}).click();
+ await dialog.getByRole('button',{name:'Design thumbnail',exact:true}).locator('xpath=ancestor::div[contains(@class,"group")][1]').getByRole('button',{name:/Delete/}).click();
  await page.waitForFunction(()=>!window.uiFixture.objects[0].checklist.some(item=>item.title==='Design thumbnail'));
  const before=analyzes;
  await dialog.getByRole('button',{name:'Replan',exact:true}).click();
- assert.equal(await dialog.getByRole('textbox',{name:'What happened?',exact:true}).isVisible(),false);
+ assert.equal(await dialog.getByLabel('What happened?',{exact:true}).isVisible(),false);
  assert.equal(analyzes,before);
  await dialog.getByLabel('What changed?',{exact:true}).fill('Rental wall, cannot drill.');
  await dialog.getByRole('button',{name:'Analyze Replan',exact:true}).click();
@@ -77,7 +81,7 @@ try {
  assert.equal(await dialog.getByText('MODIFY',{exact:true}).count(),1);
  assert.equal(await dialog.getByText('After: 免打孔安装电竞洞洞板',{exact:true}).count(),1);
  await dialog.getByRole('button',{name:'Apply Replan',exact:true}).click();
- await dialog.getByText('Could not apply replan. Your preview is still here.').waitFor();
+ await dialog.getByText('Simulated failure',{exact:true}).waitFor();
  await dialog.getByText('Review replan',{exact:true}).waitFor();
  await page.setViewportSize({width:390,height:844});await checkOverflow();
  await dialog.getByText('Review replan',{exact:true}).scrollIntoViewIfNeeded();

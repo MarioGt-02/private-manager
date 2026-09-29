@@ -565,6 +565,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
       {archiveStatus && <ArchiveDrawer key={archiveStatus} status={archiveStatus} version={historyVersion} onClose={() => setArchiveStatus(null)} onOpen={openArchivedObject} onRestore={(id) => handleLifecycle(id, "restore")} onDelete={handleDeleteObject} />}
       {showUpcoming && <UpcomingOccurrencesDialog occurrences={upcomingOccurrences} loading={upcomingLoading} error={upcomingError} onClose={() => setShowUpcoming(false)} />}
       <ObjectDrawer
+        onObjectUpdated={(saved) => { setObjects((items) => items.map((item) => item.id === saved.id ? saved : item)); if (historicalObject?.id === saved.id) setHistoricalObject(saved); }}
         onDeleteObject={handleDeleteObject}
         onCategoryChange={async (objectId, categoryId) => {
           await mutateCategory({ action: "assign", objectId, categoryId });

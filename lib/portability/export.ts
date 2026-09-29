@@ -12,7 +12,7 @@ export function buildJSONExport(rows: ExportRows, now = new Date()) {
     format: "private-manager-export" as const, version: 1 as const, exportedAt: now.toISOString(),
     categories: rows.categories.map((row) => ({ id: row.id, name: row.name, color: row.color, createdAt: row.createdAt.toISOString() })),
     objects: rows.objects.map((row) => ({ id: row.id, title: row.title, category: row.category ?? null, categoryId: row.categoryId ?? null, status: row.status, position: row.position, goal: row.goal, currentState: row.currentState, nextAction: row.nextAction, archivedAt: row.archivedAt?.toISOString() ?? null, cancelledAt: row.cancelledAt?.toISOString() ?? null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() })),
-    checklistItems: rows.checklistItems.map((row) => ({ id: row.id, objectId: row.objectId, title: row.title, completed: row.completed, position: row.position, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() })),
+    checklistItems: rows.checklistItems.map((row) => ({ id: row.id, objectId: row.objectId, parentId: row.parentId ?? null, title: row.title, completed: row.completed, estimatedMinutes: row.estimatedMinutes ?? null, position: row.position, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() })),
     objectUpdates: rows.objectUpdates.map((row) => ({ id: row.id, objectId: row.objectId, type: row.type, content: row.content, createdAt: row.createdAt.toISOString() })),
   };
 }
@@ -25,5 +25,6 @@ export function buildCSVExport(rows: ExportRows) {
     const items = (byObject.get(object.id) ?? []).sort((a, b) => a.position - b.position);
     return { id: object.id, title: object.title, category: category?.name ?? "", category_color: category?.color ?? "", status: object.status, position: object.position, archived: !!object.archivedAt, archived_at: object.archivedAt ?? "", cancelled: !!object.cancelledAt, cancelled_at: object.cancelledAt ?? "", goal: object.goal, current_state: object.currentState, next_action: object.nextAction, checklist_completed: items.filter((item) => item.completed).length, checklist_total: items.length, checklist_text: items.map((item) => `${item.completed ? "[x]" : "[ ]"} ${item.title}`).join("\n"), created_at: object.createdAt, updated_at: object.updatedAt };
   });
-  return stringify(records, { header: true, bom: true, escape_formulas: true, columns: ["id", "title", "category", "category_color", "status", "position", "archived", "archived_at", "cancelled", "cancelled_at", "goal", "current_state", "next_action", "checklist_completed", "checklist_total", "checklist_text", "created_at", "updated_at"] });
+  const withEstimates = records.map((record) => ({ ...record, checklist_estimates_json: JSON.stringify((byObject.get(record.id) ?? []).map(({ id, estimatedMinutes }) => ({ id, estimatedMinutes }))) }));
+  return stringify(withEstimates, { header: true, bom: true, escape_formulas: true, columns: ["id", "title", "category", "category_color", "status", "position", "archived", "archived_at", "cancelled", "cancelled_at", "goal", "current_state", "next_action", "checklist_completed", "checklist_total", "checklist_text", "created_at", "updated_at", "checklist_estimates_json"] });
 }

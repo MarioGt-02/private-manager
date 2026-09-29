@@ -101,6 +101,7 @@ export const checklistItems = pgTable(
     parentId: text("parent_id").references((): AnyPgColumn => checklistItems.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     completed: boolean("completed").notNull().default(false),
+    estimatedMinutes: integer("estimated_minutes"),
     position: integer("position").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

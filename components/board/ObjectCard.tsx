@@ -10,6 +10,7 @@ import { colorStyle } from "@/lib/categories/colors";
 import { useObjectCategory } from "@/components/categories/CategoryContext";
 import type { ObjectStatus } from "@/lib/types/object";
 import { MobileStatusMenu } from "./MobileStatusMenu";
+import { summarizeEstimates, formatEstimatedDuration } from "@/lib/estimates/time";
 
 interface ObjectCardProps {
   object: ManagedObject;
@@ -50,6 +51,7 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
   const palette = colorStyle(category?.color);
   const leaf = getFirstActionableIncompleteLeaf(object.checklist);
   const actionableId = leaf?.id ?? null;
+  const effort = summarizeEstimates(object.checklist);
   return <>
     {category && <span title={category.name} className="mb-2 inline-block max-w-full truncate rounded border px-1.5 py-0.5 align-middle text-[10px] font-medium" style={{ backgroundColor: palette.tint, borderColor: palette.accent, color: palette.text }}>{category.name}</span>}
     <div className="flex items-start gap-1">
@@ -85,6 +87,7 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
         </div>
         <span className="text-xs font-medium tabular-nums text-slate-600">{completed} / {total}</span>
       </div> : <p className="mt-2 text-[11px] text-slate-400">No checklist</p>}
+      {effort.hasEstimates && <p className="content-wrap mt-2 text-[11px] tabular-nums text-slate-500">⏱ ≈ {formatEstimatedDuration(effort.estimatedRemainingMinutes)} {effort.unestimatedCount ? `+ ${effort.unestimatedCount} unestimated` : "remaining"}</p>}
     </>}
   </>;
 }
