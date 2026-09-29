@@ -5,6 +5,7 @@ import { getOpenAIClient } from "@/lib/ai/openai";
 import { CREATE_OBJECT_MODEL, OPENAI_REASONING_EFFORT, OPENAI_STORE } from "@/lib/ai/prompts";
 import { replanProposalSchema, replanRequestSchema, REPLAN_PROMPT } from "@/lib/ai/replan";
 import { buildChecklistTree } from "@/lib/objects/next-action";
+import { prepareReplanProposal, ReplanValidationError } from "@/lib/ai/replan-validation";
 import { classifyAIError, errorResponse, statusForCode } from "@/lib/errors/server";
 import { newRequestId, toValidationIssues } from "@/lib/errors/serialize";
 import { ERROR_MESSAGES } from "@/lib/errors/types";
@@ -115,7 +116,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ obj
       });
     }
 
-    return NextResponse.json({ proposal: proposal.data });
+    try {
+      const prepared = prepareReplanProposal(proposal.data, object.checklist);
+      const checked = replanProposalSchema.safeParse(prepared);
+      if (!checked.success) {
+        return errorResponse({ code: "AI_SCHEMA_VALIDATION_ERROR", message: "The replan could not preserve the existing checklist within the plan limits. Generate a new proposal.", requestId, feature: FEATURE, route: ROUTE, debug: { validationIssues: toValidationIssues(checked.error.issues) } });
+      }
+      return NextResponse.json({ proposal: checked.data });
+    } catch (error) {
+      if (error instanceof ReplanValidationError) {
+        return errorResponse({ code: "AI_RESPONSE_INVALID", message: error.message, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: error.reason } });
+      }
+      throw error;
+    }
   } catch (error) {
     const classified = classifyAIError(error, { provider: PROVIDER, model: CREATE_OBJECT_MODEL });
     return errorResponse({

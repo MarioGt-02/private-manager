@@ -4,6 +4,7 @@ import { getDb } from "./index";
 import { categories, checklistItems, objectDependencies, objects, objectUpdates } from "./schema";
 import { copyTablesForRecurrence } from "./tables";
 import { InvalidCategoryError } from "@/lib/categories/suggestion";
+import { validateReplanProposal } from "@/lib/ai/replan-validation";
 import type {
   ChecklistItem,
   ManagedObject,
@@ -860,42 +861,20 @@ export async function applyAIProgressUpdate(objectId: string, update: { currentS
   return result;
 }
 
-export async function applyAIReplan(objectId: string, proposal: { title: string | null; goal: string | null; currentState: string; checklist: { sourceItemId: string | null; title: string; completed: boolean; changeType: "keep" | "modify" | "add"; children: { sourceItemId: string | null; title: string; completed: boolean; changeType: "keep" | "modify" | "add" }[] }[]; removedItemIds: string[]; summary: string }) {
+type ReplanChecklistChild = { sourceItemId: string | null; title: string; completed: boolean; changeType: "keep" | "modify" | "add" };
+type ReplanChecklistItem = ReplanChecklistChild & { children: ReplanChecklistChild[] };
+type ReplanProposal = { title: string | null; goal: string | null; currentState: string; checklist: ReplanChecklistItem[]; removedItemIds: string[]; summary: string };
+
+export async function applyAIReplan(objectId: string, proposal: ReplanProposal) {
   const db = getDb();
   await db.transaction(async (tx) => {
+    const [object] = await tx.select({ id: objects.id }).from(objects).where(eq(objects.id, objectId)).for("update");
+    if (!object) throw new Error("Object not found.");
     const existing = await tx.select().from(checklistItems).where(eq(checklistItems.objectId, objectId));
-    const byId = new Map(existing.map((item) => [item.id, item]));
-    const childCount = new Map<string, number>();
-    for (const item of existing) if (item.parentId) childCount.set(item.parentId, (childCount.get(item.parentId) ?? 0) + 1);
-
-    const sourceIds: string[] = [];
-    const collect = (list: { sourceItemId: string | null; children?: { sourceItemId: string | null }[] }[]) => {
-      for (const item of list) {
-        if (item.sourceItemId) sourceIds.push(item.sourceItemId);
-        if (item.children) collect(item.children);
-      }
-    };
-    collect(proposal.checklist);
-
-    const removedIds = new Set(proposal.removedItemIds);
-    for (const item of existing) if (item.parentId && removedIds.has(item.parentId)) removedIds.add(item.id);
-
-    if (
-      new Set(sourceIds).size !== sourceIds.length ||
-      new Set(proposal.removedItemIds).size !== proposal.removedItemIds.length ||
-      sourceIds.some((id) => !byId.has(id)) ||
-      proposal.removedItemIds.some((id) => !byId.has(id)) ||
-      sourceIds.some((id) => removedIds.has(id))
-    ) throw new Error("UPDATE_CONFLICT");
-
-    const keepIds = new Set(sourceIds);
-    for (const item of existing) {
-      if (!keepIds.has(item.id) && !removedIds.has(item.id)) throw new Error("UPDATE_CONFLICT");
-    }
+    validateReplanProposal(proposal, existing.map(toChecklistItem));
 
     const applyItem = async (item: { sourceItemId: string | null; title: string; completed: boolean }, parentId: string | null, position: number): Promise<string> => {
       if (item.sourceItemId) {
-        if (parentId && (childCount.get(item.sourceItemId) ?? 0) > 0) throw new Error("UPDATE_CONFLICT");
         await tx.update(checklistItems).set({ title: item.title, completed: item.completed, position, parentId, updatedAt: new Date() }).where(eq(checklistItems.id, item.sourceItemId));
         return item.sourceItemId;
       }

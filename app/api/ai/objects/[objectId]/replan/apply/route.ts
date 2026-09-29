@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, UnauthorizedError } from "@/lib/auth/require-auth";
 import { getObject, applyAIReplan } from "@/lib/db/queries";
 import { replanApplySchema } from "@/lib/ai/replan";
+import { ReplanValidationError } from "@/lib/ai/replan-validation";
 import { errorResponse } from "@/lib/errors/server";
 import { newRequestId, toValidationIssues } from "@/lib/errors/serialize";
 
@@ -41,8 +42,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ obj
   try {
     return NextResponse.json({ object: await applyAIReplan(objectId, parsed.data.proposal) });
   } catch (error) {
+    if (error instanceof ReplanValidationError) {
+      return errorResponse({ code: "UPDATE_CONFLICT", message: error.message, requestId, feature: FEATURE, route: ROUTE, debug: { details: error.reason } });
+    }
     if (error instanceof Error && error.message === "UPDATE_CONFLICT") {
-      return errorResponse({ code: "UPDATE_CONFLICT", message: "The Object changed before this replan was applied.", requestId, feature: FEATURE, route: ROUTE });
+      return errorResponse({ code: "UPDATE_CONFLICT", message: "The replan could not be safely matched to the current checklist. This does not necessarily mean you changed the Object. Generate a new proposal.", requestId, feature: FEATURE, route: ROUTE });
     }
     return errorResponse({ code: "DATABASE_ERROR", message: "Could not apply replan.", requestId, feature: FEATURE, route: ROUTE, cause: error });
   }
