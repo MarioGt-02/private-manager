@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prepareReplanProposal, validateReplanProposal, ReplanValidationError } from "@/lib/ai/replan-validation";
+import { prepareReplanProposal, repairReplanSourceIds, validateReplanProposal, ReplanValidationError } from "@/lib/ai/replan-validation";
 import type { ChecklistItem } from "@/lib/types/object";
 
 const existing: ChecklistItem[] = [
@@ -24,6 +24,13 @@ describe("Replan proposal validation", () => {
     expect(() => prepareReplanProposal({ checklist: [item("wrong-id")], removedItemIds: [] }, existing)).toThrow("IDs that do not exist");
     expect(() => prepareReplanProposal({ checklist: [item("parent"), item("parent")], removedItemIds: [] }, existing)).toThrow("more than once");
     expect(() => prepareReplanProposal({ checklist: [item("other")], removedItemIds: ["parent", "parent"] }, existing)).toThrow("more than once");
+  });
+
+  it("repairs an unknown source ID only when the old title is unique", () => {
+    const repaired = repairReplanSourceIds({ checklist: [{ ...item("wrong-id"), title: "Other" }], removedItemIds: [] }, existing);
+    expect(repaired.checklist[0].sourceItemId).toBe("other");
+    const ambiguous = [...existing, { id: "other-2", title: "Other", parentId: null, completed: false, position: 3 }];
+    expect(repairReplanSourceIds({ checklist: [{ ...item("wrong-id"), title: "Other" }], removedItemIds: [] }, ambiguous).checklist[0].sourceItemId).toBe("wrong-id");
   });
 
   it("rejects keep/remove overlap including a removed parent's children", () => {

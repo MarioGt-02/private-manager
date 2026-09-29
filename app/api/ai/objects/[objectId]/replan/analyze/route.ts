@@ -5,7 +5,7 @@ import { getOpenAIClient } from "@/lib/ai/openai";
 import { CREATE_OBJECT_MODEL, OPENAI_REASONING_EFFORT, OPENAI_STORE } from "@/lib/ai/prompts";
 import { replanProposalSchema, replanRequestSchema, REPLAN_PROMPT } from "@/lib/ai/replan";
 import { buildChecklistTree } from "@/lib/objects/next-action";
-import { prepareReplanProposal, ReplanValidationError } from "@/lib/ai/replan-validation";
+import { prepareReplanProposal, repairReplanSourceIds, ReplanValidationError } from "@/lib/ai/replan-validation";
 import { classifyAIError, errorResponse, statusForCode } from "@/lib/errors/server";
 import { newRequestId, toValidationIssues } from "@/lib/errors/serialize";
 import { ERROR_MESSAGES } from "@/lib/errors/types";
@@ -93,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ obj
         max_output_tokens: 8192,
         instructions: repairRequest ? `${REPLAN_PROMPT}\n\nThis is a correction pass. Return a complete replacement proposal. Do not discuss the correction; output only the required JSON.` : REPLAN_PROMPT,
         input: [
-          { role: "system", content: repairRequest ? `${REPLAN_PROMPT}\n\nThe previous proposal failed backend validation. Correct it and return only a complete replacement JSON proposal.` : REPLAN_PROMPT },
+          { role: "system", content: repairRequest ? `${REPLAN_PROMPT}\n\nThe previous proposal failed backend validation. Correct it and return only a complete replacement JSON proposal. Every sourceItemId must be copied exactly from the checklist context; never invent, transform, or reuse an ID.` : `${REPLAN_PROMPT}\n\nFor existing checklist items, sourceItemId is an opaque database ID. Copy it character-for-character from the input checklist. Never use a title as an ID and never invent an ID.` },
           { role: "user", content: repairRequest ? `${originalInput}\n\nPrevious proposal:\n${repairRequest}` : originalInput },
         ],
         text: { format },
@@ -123,7 +123,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ obj
       }
 
       try {
-        const prepared = prepareReplanProposal(proposal.data, object.checklist);
+        const prepared = prepareReplanProposal(repairReplanSourceIds(proposal.data, object.checklist), object.checklist);
         const checked = replanProposalSchema.safeParse(prepared);
         if (!checked.success) {
           return errorResponse({ code: "AI_SCHEMA_VALIDATION_ERROR", message: "The replan could not preserve the existing checklist within the plan limits. Generate a new proposal.", requestId, feature: FEATURE, route: ROUTE, debug: { validationIssues: toValidationIssues(checked.error.issues) } });

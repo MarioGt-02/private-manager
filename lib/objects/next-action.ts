@@ -93,10 +93,12 @@ export function buildChecklistTree(items: ChecklistItem[]) {
 
   return top.map((parent) => ({
     id: parent.id,
+    sourceItemId: parent.id,
     title: parent.title,
     completed: parent.completed,
     children: childrenOf(parent.id).map((child) => ({
       id: child.id,
+      sourceItemId: child.id,
       title: child.title,
       completed: child.completed,
     })),

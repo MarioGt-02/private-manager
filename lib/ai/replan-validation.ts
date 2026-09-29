@@ -5,6 +5,27 @@ import type { replanProposalSchema } from "./replan";
 type Proposal = Pick<z.infer<typeof replanProposalSchema>, "checklist" | "removedItemIds">;
 type Item = Proposal["checklist"][number];
 
+/** Repair only an unambiguous title-to-ID mismatch from the model. */
+export function repairReplanSourceIds<T extends Proposal>(proposal: T, existing: ChecklistItem[]): T {
+  const byTitle = new Map<string, ChecklistItem[]>();
+  for (const item of existing) byTitle.set(item.title, [...(byTitle.get(item.title) ?? []), item]);
+  const used = new Set<string>();
+  const repairSourceId = (item: { sourceItemId: string | null; title: string }) => {
+    let sourceItemId = item.sourceItemId;
+    if (sourceItemId && !existing.some((current) => current.id === sourceItemId)) {
+      const matches = byTitle.get(item.title) ?? [];
+      if (matches.length === 1 && !used.has(matches[0].id)) sourceItemId = matches[0].id;
+    }
+    if (sourceItemId) used.add(sourceItemId);
+    return sourceItemId;
+  };
+  const repair = (item: Item): Item => {
+    const sourceItemId = repairSourceId(item);
+    return { ...item, sourceItemId, children: item.children.map((child) => ({ ...child, sourceItemId: repairSourceId(child) })) };
+  };
+  return { ...proposal, checklist: proposal.checklist.map(repair) };
+}
+
 export class ReplanValidationError extends Error {
   constructor(public readonly reason: string, message: string) {
     super(message);

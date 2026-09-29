@@ -134,7 +134,7 @@ describe("AI Replan hierarchy", () => {
   it("rejects invented AI IDs during analyze instead of returning an unusable preview", async () => {
     const object = await createObject({ title: "O", checklist: [{ title: "Existing", completed: false }] });
     const before = await getObject(object.id);
-    const raw = { title: null, goal: null, currentState: "New facts", reasonSummary: "Plan", summary: "Plan", removedItemIds: [], checklist: [{ sourceItemId: "invented-id", title: "Existing", completed: false, changeType: "keep", children: [] }] };
+    const raw = { title: null, goal: null, currentState: "New facts", reasonSummary: "Plan", summary: "Plan", removedItemIds: [], checklist: [{ sourceItemId: "invented-id", title: "Not an existing item", completed: false, changeType: "keep", children: [] }] };
     mocks.auth.mockResolvedValue({});
     mocks.openai.mockReturnValue({ responses: { create: vi.fn().mockResolvedValue({ output_text: JSON.stringify(raw) }) } });
     const response = await analyzeReplan(new Request("http://app.test/replan/analyze", { method: "POST", body: JSON.stringify({ message: "Update the plan" }) }), { params: Promise.resolve({ objectId: object.id }) });
