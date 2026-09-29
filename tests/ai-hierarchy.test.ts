@@ -146,6 +146,25 @@ describe("AI Replan hierarchy", () => {
     expect(await getObject(object.id)).toEqual(before);
   });
 
+  it("repairs a duplicate checklist ID once and returns the corrected preview", async () => {
+    const object = await createObject({ title: "O", checklist: [{ title: "Existing", completed: false }] });
+    const existing = (await getObject(object.id))!.checklist[0];
+    const duplicate = { title: null, goal: null, currentState: "New facts", reasonSummary: "Plan", summary: "Plan", removedItemIds: [], checklist: [
+      { sourceItemId: existing.id, title: existing.title, completed: false, changeType: "keep", children: [] },
+      { sourceItemId: existing.id, title: existing.title, completed: false, changeType: "keep", children: [] },
+    ] };
+    const corrected = { ...duplicate, checklist: [{ ...duplicate.checklist[0] }] };
+    mocks.auth.mockResolvedValue({});
+    const create = vi.fn()
+      .mockResolvedValueOnce({ output_text: JSON.stringify(duplicate) })
+      .mockResolvedValueOnce({ output_text: JSON.stringify(corrected) });
+    mocks.openai.mockReturnValue({ responses: { create } });
+    const response = await analyzeReplan(new Request("http://app.test/replan/analyze", { method: "POST", body: JSON.stringify({ message: "改成 Life Assistant 核心框架" }) }), { params: Promise.resolve({ objectId: object.id }) });
+    expect(response.status).toBe(200);
+    expect(create).toHaveBeenCalledTimes(2);
+    expect((await response.json()).proposal.checklist).toHaveLength(1);
+  });
+
   it("allows converting an old parent into a child when its old children are explicitly removed", async () => {
     const object = await createObject({ title: "O", checklist: [{ title: "Old parent", completed: false, children: [{ title: "Old child", completed: false }] }] });
     const parent = object.checklist.find((item) => item.parentId === null)!;

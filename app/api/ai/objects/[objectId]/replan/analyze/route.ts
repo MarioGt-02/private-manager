@@ -15,6 +15,7 @@ export const runtime = "nodejs";
 const FEATURE = "ai_replan";
 const ROUTE = "/api/ai/objects/[objectId]/replan/analyze";
 const PROVIDER = "openai";
+const MAX_REPLAN_REPAIR_ATTEMPTS = 1;
 
 const format = {
   type: "json_schema" as const,
@@ -80,55 +81,66 @@ export async function POST(request: Request, { params }: { params: Promise<{ obj
   }
 
   try {
-    const response = await getOpenAIClient().responses.create({
-      model: CREATE_OBJECT_MODEL,
-      reasoning: { effort: OPENAI_REASONING_EFFORT },
-      store: OPENAI_STORE,
-      max_output_tokens: 8192,
-      instructions: REPLAN_PROMPT,
-      input: [
-        { role: "system", content: REPLAN_PROMPT },
-        { role: "user", content: JSON.stringify({ object: { ...object, checklist: buildChecklistTree(object.checklist) }, recentUpdates, change: input.data.message }) },
-      ],
-      text: { format },
-    });
+    const client = getOpenAIClient();
+    const originalInput = JSON.stringify({ object: { ...object, checklist: buildChecklistTree(object.checklist) }, recentUpdates, change: input.data.message });
+    let repairRequest: string | null = null;
 
-    const content = response.output_text;
-    if (!content) {
-      return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "Provider returned empty output text." } });
-    }
-
-    let proposal;
-    try { proposal = replanProposalSchema.safeParse(parse(content)); }
-    catch {
-      return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "Provider output was not valid JSON." } });
-    }
-    if (!proposal.success) {
-      return errorResponse({
-        code: "AI_SCHEMA_VALIDATION_ERROR",
-        message: ERROR_MESSAGES.AI_SCHEMA_VALIDATION_ERROR,
-        requestId,
-        feature: FEATURE,
-        route: ROUTE,
-        provider: PROVIDER,
+    for (let attempt = 0; attempt <= MAX_REPLAN_REPAIR_ATTEMPTS; attempt += 1) {
+      const response = await client.responses.create({
         model: CREATE_OBJECT_MODEL,
-        debug: { validationIssues: toValidationIssues(proposal.error.issues) },
+        reasoning: { effort: OPENAI_REASONING_EFFORT },
+        store: OPENAI_STORE,
+        max_output_tokens: 8192,
+        instructions: repairRequest ? `${REPLAN_PROMPT}\n\nThis is a correction pass. Return a complete replacement proposal. Do not discuss the correction; output only the required JSON.` : REPLAN_PROMPT,
+        input: [
+          { role: "system", content: repairRequest ? `${REPLAN_PROMPT}\n\nThe previous proposal failed backend validation. Correct it and return only a complete replacement JSON proposal.` : REPLAN_PROMPT },
+          { role: "user", content: repairRequest ? `${originalInput}\n\nPrevious proposal:\n${repairRequest}` : originalInput },
+        ],
+        text: { format },
       });
-    }
 
-    try {
-      const prepared = prepareReplanProposal(proposal.data, object.checklist);
-      const checked = replanProposalSchema.safeParse(prepared);
-      if (!checked.success) {
-        return errorResponse({ code: "AI_SCHEMA_VALIDATION_ERROR", message: "The replan could not preserve the existing checklist within the plan limits. Generate a new proposal.", requestId, feature: FEATURE, route: ROUTE, debug: { validationIssues: toValidationIssues(checked.error.issues) } });
+      const content = response.output_text;
+      if (!content) {
+        return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "Provider returned empty output text." } });
       }
-      return NextResponse.json({ proposal: checked.data });
-    } catch (error) {
-      if (error instanceof ReplanValidationError) {
-        return errorResponse({ code: "AI_RESPONSE_INVALID", message: error.message, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: error.reason } });
+
+      let proposal;
+      try { proposal = replanProposalSchema.safeParse(parse(content)); }
+      catch {
+        return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "Provider output was not valid JSON." } });
       }
-      throw error;
+      if (!proposal.success) {
+        return errorResponse({
+          code: "AI_SCHEMA_VALIDATION_ERROR",
+          message: ERROR_MESSAGES.AI_SCHEMA_VALIDATION_ERROR,
+          requestId,
+          feature: FEATURE,
+          route: ROUTE,
+          provider: PROVIDER,
+          model: CREATE_OBJECT_MODEL,
+          debug: { validationIssues: toValidationIssues(proposal.error.issues) },
+        });
+      }
+
+      try {
+        const prepared = prepareReplanProposal(proposal.data, object.checklist);
+        const checked = replanProposalSchema.safeParse(prepared);
+        if (!checked.success) {
+          return errorResponse({ code: "AI_SCHEMA_VALIDATION_ERROR", message: "The replan could not preserve the existing checklist within the plan limits. Generate a new proposal.", requestId, feature: FEATURE, route: ROUTE, debug: { validationIssues: toValidationIssues(checked.error.issues) } });
+        }
+        return NextResponse.json({ proposal: checked.data });
+      } catch (error) {
+        if (error instanceof ReplanValidationError && attempt < MAX_REPLAN_REPAIR_ATTEMPTS) {
+          repairRequest = `${error.reason}: ${error.message}\n\nThe previous proposal was:\n${JSON.stringify(proposal.data)}`;
+          continue;
+        }
+        if (error instanceof ReplanValidationError) {
+          return errorResponse({ code: "AI_RESPONSE_INVALID", message: error.message, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: error.reason } });
+        }
+        throw error;
+      }
     }
+    return errorResponse({ code: "AI_RESPONSE_INVALID", message: ERROR_MESSAGES.AI_RESPONSE_INVALID, requestId, feature: FEATURE, route: ROUTE, provider: PROVIDER, model: CREATE_OBJECT_MODEL, debug: { details: "No valid replan proposal was produced." } });
   } catch (error) {
     const classified = classifyAIError(error, { provider: PROVIDER, model: CREATE_OBJECT_MODEL });
     return errorResponse({
