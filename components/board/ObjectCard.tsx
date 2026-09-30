@@ -55,10 +55,11 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
   const actionableId = leaf?.id ?? null;
   return <>
     {category && <span title={category.name} className="mb-2 inline-block max-w-full truncate rounded border px-1.5 py-0.5 align-middle text-[10px] font-medium" style={{ backgroundColor: palette.tint, borderColor: palette.accent, color: palette.text }}>{category.name}</span>}
-    <div className="flex items-start gap-1">
+    <div className="relative flex items-start gap-1">
       <h3 title={object.title} className="line-clamp-2 min-w-0 flex-1 text-base font-semibold leading-snug tracking-tight text-slate-950">{object.title}</h3>
       {object.unresolvedDependencies > 0 && <span title={`${object.unresolvedDependencies} unresolved ${object.unresolvedDependencies === 1 ? "dependency" : "dependencies"}`} className="shrink-0 self-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-800">🔒 {object.unresolvedDependencies}</span>}
       {onMoveStatus && <MobileStatusMenu objectTitle={object.title} currentStatus={object.status} onMove={onMoveStatus} />}
+      {onEstimateApplied && <div className="ml-auto"><CardEstimateAction object={object} disabled={pending} onApplied={onEstimateApplied} onPendingChange={onEstimatePendingChange} /></div>}
       {onToggleMinimize && <button type="button" onClick={(event) => { event.stopPropagation(); onToggleMinimize(); }} onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} aria-label={`${minimized ? "Expand" : "Minimize"} ${object.title}`} aria-expanded={!minimized} title={minimized ? "Expand" : "Minimize"} className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
         <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className={`h-4 w-4 transition-transform ${minimized ? "rotate-0" : "rotate-180"}`}><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
       </button>}
@@ -89,6 +90,5 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
         <span className="text-xs font-medium tabular-nums text-slate-600">{completed} / {total}</span>
       </div> : <p className="mt-2 text-[11px] text-slate-400">No checklist</p>}
     </>}
-    <CardEstimateAction object={object} disabled={pending} onApplied={onEstimateApplied} onPendingChange={onEstimatePendingChange} />
   </>;
 }

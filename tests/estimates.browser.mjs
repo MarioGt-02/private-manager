@@ -91,7 +91,7 @@ try {
     await page.screenshot({ path: path.join(output, `estimate-${width}.png`) });
     await section.getByRole("button", { name: "Cancel", exact: true }).click();
     await dialog.getByRole("button", { name: /Close/ }).click();
-    await page.getByTestId("card").getByText(/⏱ 总预计 ≈ 2h 45m/).waitFor();
+    await page.getByTestId("card").getByRole("button", { name: "Estimate time: Life Assistant 核心框架", exact: true }).waitFor();
     await page.addInitScript(() => { window.cardOnly = true; });
     await page.reload();
     const card = page.getByTestId("card");
@@ -100,23 +100,23 @@ try {
     if (width < 1024) { const box = await action.boundingBox(); assert(box.height >= 44); }
     await card.getByRole("button", { name: "Minimize Life Assistant 核心框架", exact: true }).click();
     await action.press("Enter");
-    await card.getByText(/总预计 ≈ 1h 30m · Remaining/).waitFor();
+    await card.getByLabel("Card estimate preview", { exact: true }).waitFor();
     assert.equal(await page.getByRole("dialog").count(), 0, "estimate keyboard action does not open Workspace");
     assert.equal(await page.evaluate(() => window.estimateWrites), 0, "analyze only proposes");
-    await card.getByText("查看各步骤预计时间", { exact: true }).click();
+    await card.getByText("查看步骤", { exact: true }).click();
     await card.getByText("Implement API · ≈ 45m", { exact: true }).waitFor();
     await card.getByRole("button", { name: "Cancel", exact: true }).click();
     assert.equal(await page.evaluate(() => window.estimateWrites), 0, "card Cancel does not write");
     await action.click();
-    await card.getByText(/总预计 ≈ 1h 30m · Remaining/).waitFor();
+    await card.getByLabel("Card estimate preview", { exact: true }).waitFor();
     failCardApply = true;
     await card.getByRole("button", { name: "Apply", exact: true }).click();
     await card.getByText("Simulated stale estimate", { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.estimateWrites), 0);
     await card.getByRole("button", { name: "Apply", exact: true }).click();
-    await card.getByText(/⏱ 总预计 ≈ 1h 30m/).waitFor();
+    await action.waitFor();
+    assert.equal(await action.getAttribute("title"), "Estimated total ≈ 1h 30m");
     assert.equal(await page.evaluate(() => window.estimateWrites), 1);
-    assert.equal(await action.count(), 0, "fully estimated Card needs no missing action");
     assert.equal(await page.getByRole("dialog").count(), 0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.screenshot({ path: path.join(output, `card-estimate-${width}.png`) });

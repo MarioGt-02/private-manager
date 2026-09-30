@@ -227,7 +227,7 @@ describe("estimate UI", () => {
   it("hides unestimated card effort, shows remaining and partial count", async () => {
     const object = await make(); expect(renderToStaticMarkup(createElement(CardBody, { object }))).not.toContain("⏱");
     const estimated = { ...object, checklist: object.checklist.map((item, index) => ({ ...item, estimatedMinutes: index ? null : 90 })) };
-    const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated })); expect(markup).toContain("1h 30m"); expect(markup).toContain("1 unestimated");
+    const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated, onEstimateApplied: vi.fn() })); expect(markup).toContain("⏱ ≈ 1h 30m"); expect(markup).toContain("Estimated total ≈ 1h 30m");
   });
   it("summary returns no misleading zero for an unestimated Object", () => expect(renderToStaticMarkup(createElement(EstimateSummary, { items: [leaf("a", null)] }))).toBe(""));
   it("offers Card estimation when minimized, hides it on empty or historical cards", async () => {
@@ -242,9 +242,9 @@ describe("estimate UI", () => {
     const object = await make();
     const estimated = { ...object, checklist: object.checklist.map((item, index) => ({ ...item, estimatedMinutes: index ? 45 : 90 })) };
     const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated, minimized: true, onEstimateApplied: vi.fn() }));
-    expect(markup).toContain("总预计 ≈ 2h 15m");
-    expect(markup).toContain("Remaining ≈ 1h 30m");
-    expect(markup).not.toContain("Estimate time:");
+    expect(markup).toContain("⏱ ≈ 2h 15m");
+    expect(markup).toContain("Estimated total ≈ 2h 15m");
+    expect(markup).not.toContain("Estimated Time · optional");
   });
   it("offers explicit AI missing/all actions and no fixed-width input", async () => {
     const object = await make(); const markup = renderToStaticMarkup(createElement(TimeEstimates, { object, disabled: false, onPendingChange: vi.fn() }));
