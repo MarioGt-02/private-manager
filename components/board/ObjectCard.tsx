@@ -55,8 +55,8 @@ export function CardBody({ object, minimized = false, onToggleMinimize, onComple
   const actionableId = leaf?.id ?? null;
   return <>
     <div className="relative min-w-0">
-      <div className="flex min-w-0 items-start gap-1">
-        {category && <span title={category.name} className="mb-2 inline-block min-w-0 max-w-[70%] truncate rounded border px-1.5 py-0.5 align-middle text-[10px] font-medium" style={{ backgroundColor: palette.tint, borderColor: palette.accent, color: palette.text }}>{category.name}</span>}
+      <div className="flex min-w-0 items-center gap-1">
+        {category && <span title={category.name} className="inline-block min-w-0 max-w-[70%] truncate rounded border px-1.5 py-0.5 align-middle text-[10px] font-medium" style={{ backgroundColor: palette.tint, borderColor: palette.accent, color: palette.text }}>{category.name}</span>}
         {onEstimateApplied && <div className="ml-auto"><CardEstimateAction object={object} disabled={pending} onApplied={onEstimateApplied} onPendingChange={onEstimatePendingChange} /></div>}
       </div>
       <div className="flex min-w-0 items-start gap-1">
