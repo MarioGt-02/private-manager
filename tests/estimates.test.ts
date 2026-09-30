@@ -230,6 +230,22 @@ describe("estimate UI", () => {
     const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated })); expect(markup).toContain("1h 30m"); expect(markup).toContain("1 unestimated");
   });
   it("summary returns no misleading zero for an unestimated Object", () => expect(renderToStaticMarkup(createElement(EstimateSummary, { items: [leaf("a", null)] }))).toBe(""));
+  it("offers Card estimation when minimized, hides it on empty or historical cards", async () => {
+    const object = await make();
+    const render = (value = object) => renderToStaticMarkup(createElement(CardBody, { object: value, minimized: true, onEstimateApplied: vi.fn() }));
+    expect(render()).toContain(`Estimate time: ${object.title}`);
+    expect(render({ ...object, checklist: [] })).not.toContain("Estimate time:");
+    expect(render({ ...object, archivedAt: new Date().toISOString() })).not.toContain("Estimate time:");
+    expect(render({ ...object, cancelledAt: new Date().toISOString() })).not.toContain("Estimate time:");
+  });
+  it("displays total rather than only remaining, retains partial-estimate warning", async () => {
+    const object = await make();
+    const estimated = { ...object, checklist: object.checklist.map((item, index) => ({ ...item, estimatedMinutes: index ? 45 : 90 })) };
+    const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated, minimized: true, onEstimateApplied: vi.fn() }));
+    expect(markup).toContain("总预计 ≈ 2h 15m");
+    expect(markup).toContain("Remaining ≈ 1h 30m");
+    expect(markup).not.toContain("Estimate time:");
+  });
   it("offers explicit AI missing/all actions and no fixed-width input", async () => {
     const object = await make(); const markup = renderToStaticMarkup(createElement(TimeEstimates, { object, disabled: false, onPendingChange: vi.fn() }));
     expect(markup).toContain("Estimate time with AI"); expect(markup).toContain("Re-estimate all"); expect(markup).toContain("flex-wrap"); expect(markup).not.toContain("≈ 0m");

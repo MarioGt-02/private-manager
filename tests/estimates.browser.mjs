@@ -26,6 +26,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = []; page.on("pageerror", (error) => errors.push(error.message));
     const modes = [];
+    let failCardApply = false;
     await page.route("**/api/**", async (route) => {
       const url = route.request().url(); const payload = route.request().postDataJSON();
       const current = await page.evaluate(() => window.estimateFixture);
@@ -36,6 +37,7 @@ try {
         modes.push(payload.mode);
         body = { proposal: { mode: payload.mode, snapshot: current.checklist, warning: null, estimates: current.checklist.filter((item) => payload.mode === "all" || item.estimatedMinutes === null).map((item) => ({ checklistItemId: item.id, estimatedMinutes: 45 })) } };
       } else if (url.endsWith("/estimate-time/apply")) {
+        if (failCardApply) { failCardApply = false; await route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: { code: "UPDATE_CONFLICT", message: "Simulated stale estimate", requestId: "fixture-request" } }) }); return; }
         body = { object: { ...current, checklist: current.checklist.map((item) => { const estimate = payload.proposal.estimates.find((estimate) => estimate.checklistItemId === item.id); return estimate ? { ...item, estimatedMinutes: estimate.estimatedMinutes } : item; }) } };
       } else if (url.endsWith("/activity")) body = { updates: [] };
       else if (url.endsWith("/tables")) body = { tables: [] };
@@ -89,9 +91,37 @@ try {
     await page.screenshot({ path: path.join(output, `estimate-${width}.png`) });
     await section.getByRole("button", { name: "Cancel", exact: true }).click();
     await dialog.getByRole("button", { name: /Close/ }).click();
-    await page.getByTestId("card").getByText(/⏱ ≈ 2h 45m remaining/).waitFor();
+    await page.getByTestId("card").getByText(/⏱ 总预计 ≈ 2h 45m/).waitFor();
+    await page.addInitScript(() => { window.cardOnly = true; });
+    await page.reload();
+    const card = page.getByTestId("card");
+    const action = card.getByRole("button", { name: "Estimate time: Life Assistant 核心框架", exact: true });
+    await action.waitFor();
+    if (width < 1024) { const box = await action.boundingBox(); assert(box.height >= 44); }
+    await card.getByRole("button", { name: "Minimize Life Assistant 核心框架", exact: true }).click();
+    await action.press("Enter");
+    await card.getByText(/总预计 ≈ 1h 30m · Remaining/).waitFor();
+    assert.equal(await page.getByRole("dialog").count(), 0, "estimate keyboard action does not open Workspace");
+    assert.equal(await page.evaluate(() => window.estimateWrites), 0, "analyze only proposes");
+    await card.getByText("查看各步骤预计时间", { exact: true }).click();
+    await card.getByText("Implement API · ≈ 45m", { exact: true }).waitFor();
+    await card.getByRole("button", { name: "Cancel", exact: true }).click();
+    assert.equal(await page.evaluate(() => window.estimateWrites), 0, "card Cancel does not write");
+    await action.click();
+    await card.getByText(/总预计 ≈ 1h 30m · Remaining/).waitFor();
+    failCardApply = true;
+    await card.getByRole("button", { name: "Apply", exact: true }).click();
+    await card.getByText("Simulated stale estimate", { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.estimateWrites), 0);
+    await card.getByRole("button", { name: "Apply", exact: true }).click();
+    await card.getByText(/⏱ 总预计 ≈ 1h 30m/).waitFor();
+    assert.equal(await page.evaluate(() => window.estimateWrites), 1);
+    assert.equal(await action.count(), 0, "fully estimated Card needs no missing action");
+    assert.equal(await page.getByRole("dialog").count(), 0);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.screenshot({ path: path.join(output, `card-estimate-${width}.png`) });
     assert.deepEqual(errors, []);
     await page.close();
   }
-  console.log("Estimate browser fixtures passed: manual invalid/set/clear, AI preview edit/cancel/apply/all, Card refresh, 375/390/1440 overflow and mobile single scroll. No live DB/provider writes.");
+  console.log("Estimate browser fixtures passed: Workspace and Card analyze/preview/cancel/apply/retry, minimized Card, keyboard isolation, Card total refresh, 375/390/1440 overflow and mobile single scroll. No live DB/provider writes.");
 } finally { await browser.close(); await new Promise((resolve) => server.close(resolve)); }

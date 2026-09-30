@@ -23,19 +23,20 @@ interface ColumnProps {
   onSelect: (id: string) => void;
   onToggleMinimize: (id: string) => void;
   onCompleteNextAction: (objectId: string, itemId: string) => void;
+  onEstimateApplied?: (object: ManagedObject) => void;
 }
 
-function ObjectDropTarget({ object, onSelect, selected, minimized, onToggleMinimize, pending, onCompleteNextAction }: { object: ManagedObject; onSelect: (id: string) => void; selected: boolean; minimized: boolean; onToggleMinimize: () => void; pending: boolean; onCompleteNextAction: (itemId: string) => void }) {
+function ObjectDropTarget({ object, onSelect, selected, minimized, onToggleMinimize, pending, onCompleteNextAction, onEstimateApplied }: { object: ManagedObject; onSelect: (id: string) => void; selected: boolean; minimized: boolean; onToggleMinimize: () => void; pending: boolean; onCompleteNextAction: (itemId: string) => void; onEstimateApplied?: (object: ManagedObject) => void }) {
   const { setNodeRef, isOver } = useDroppable({
     id: objectDropId(object.id),
     data: { objectId: object.id, status: object.status },
   });
   return <div ref={setNodeRef} className={`mb-2.5 flow-root break-inside-avoid rounded-lg ${isOver ? "ring-2 ring-blue-400 ring-offset-2" : ""}`}>
-    <ObjectCard object={object} onSelect={onSelect} selected={selected} minimized={minimized} onToggleMinimize={onToggleMinimize} pending={pending} onCompleteNextAction={onCompleteNextAction} />
+    <ObjectCard object={object} onSelect={onSelect} selected={selected} minimized={minimized} onToggleMinimize={onToggleMinimize} pending={pending} onCompleteNextAction={onCompleteNextAction} onEstimateApplied={onEstimateApplied} />
   </div>;
 }
 
-export function Column({ column, objects, onSelect, selectedId, onArchive, onUpcoming, minimizedIds, pendingIds, onToggleMinimize, onCompleteNextAction }: ColumnProps) {
+export function Column({ column, objects, onSelect, selectedId, onArchive, onUpcoming, minimizedIds, pendingIds, onToggleMinimize, onCompleteNextAction, onEstimateApplied }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const storageKey = `private-manager:column-width:${column.id}`;
   const [width, setWidth] = useState(() => {
@@ -75,7 +76,7 @@ export function Column({ column, objects, onSelect, selectedId, onArchive, onUpc
         <button type="button" className="btn-tertiary" aria-label={`Archived ${column.label} Objects`} title={`Archived — ${column.label}`} onClick={onArchive}>🗂</button>
       </header>
       <div className="shrink-0 px-2.5 pb-[640px]" style={{ columnWidth: 250, columnGap: 10 }}>
-        {objects.map((object) => <ObjectDropTarget key={object.id} object={object} onSelect={onSelect} selected={object.id === selectedId} minimized={minimizedIds.has(object.id)} onToggleMinimize={() => onToggleMinimize(object.id)} pending={pendingIds.has(object.id)} onCompleteNextAction={(itemId) => onCompleteNextAction(object.id, itemId)} />)}
+        {objects.map((object) => <ObjectDropTarget key={object.id} object={object} onSelect={onSelect} selected={object.id === selectedId} minimized={minimizedIds.has(object.id)} onToggleMinimize={() => onToggleMinimize(object.id)} pending={pendingIds.has(object.id)} onCompleteNextAction={(itemId) => onCompleteNextAction(object.id, itemId)} onEstimateApplied={onEstimateApplied} />)}
         {!objects.length && <p style={{ columnSpan: "all" }} className="mb-2.5 rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-500">No Objects here yet.</p>}
       </div>
       <div

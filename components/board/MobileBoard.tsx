@@ -3,7 +3,7 @@
 import { COLUMNS, type ManagedObject, type ObjectStatus } from "@/lib/types/object";
 import { ObjectCard } from "./ObjectCard";
 
-export function MobileBoard({ objects, activeStatus, onStatusChange, onSelect, selectedId, minimizedIds, pendingIds, onToggleMinimize, onCompleteNextAction, onMoveStatus }: {
+export function MobileBoard({ objects, activeStatus, onStatusChange, onSelect, selectedId, minimizedIds, pendingIds, onToggleMinimize, onCompleteNextAction, onMoveStatus, onEstimateApplied }: {
   objects: ManagedObject[];
   activeStatus: ObjectStatus;
   onStatusChange: (status: ObjectStatus) => void;
@@ -14,6 +14,7 @@ export function MobileBoard({ objects, activeStatus, onStatusChange, onSelect, s
   onToggleMinimize: (id: string) => void;
   onCompleteNextAction: (objectId: string, itemId: string) => void;
   onMoveStatus: (objectId: string, status: ObjectStatus) => Promise<void>;
+  onEstimateApplied?: (object: ManagedObject) => void;
 }) {
   const counts = new Map(COLUMNS.map((column) => [column.id, objects.filter((object) => object.status === column.id).length]));
   const activeColumn = COLUMNS.find((column) => column.id === activeStatus) ?? COLUMNS[0];
@@ -30,7 +31,7 @@ export function MobileBoard({ objects, activeStatus, onStatusChange, onSelect, s
     <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 py-4 pb-6">
       <div className="mb-3 flex items-center justify-between"><h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{activeColumn.emoji} {activeColumn.label}</h2><span className="text-xs tabular-nums text-slate-500">{activeObjects.length}</span></div>
       <div className="space-y-3">
-        {activeObjects.map((object) => <ObjectCard key={object.id} object={object} selected={object.id === selectedId} minimized={minimizedIds.has(object.id)} pending={pendingIds.has(object.id)} onSelect={onSelect} onToggleMinimize={() => onToggleMinimize(object.id)} onCompleteNextAction={(itemId) => onCompleteNextAction(object.id, itemId)} dragEnabled={false} mobile onMoveStatus={(status) => onMoveStatus(object.id, status)} />)}
+        {activeObjects.map((object) => <ObjectCard key={object.id} object={object} selected={object.id === selectedId} minimized={minimizedIds.has(object.id)} pending={pendingIds.has(object.id)} onSelect={onSelect} onToggleMinimize={() => onToggleMinimize(object.id)} onCompleteNextAction={(itemId) => onCompleteNextAction(object.id, itemId)} dragEnabled={false} mobile onMoveStatus={(status) => onMoveStatus(object.id, status)} onEstimateApplied={onEstimateApplied} />)}
         {!activeObjects.length && <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">No {activeColumn.label} objects</div>}
       </div>
     </div>

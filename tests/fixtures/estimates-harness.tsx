@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ObjectDrawer } from "@/components/board/ObjectDrawer";
-import { CardBody } from "@/components/board/ObjectCard";
+import { ObjectCard } from "@/components/board/ObjectCard";
 import type { ManagedObject } from "@/lib/types/object";
 const object: ManagedObject = {
   id: "fixture-object", title: "Life Assistant 核心框架", goal: "Build a usable reminder", status: "doing", position: 0,
@@ -15,7 +15,8 @@ Object.assign(window, { estimateFixture: structuredClone(object), estimateWrites
 const noop = async () => {};
 function Harness() {
   const [current, setCurrent] = useState(object);
-  const [open, setOpen] = useState(true);
-  return <><article data-testid="card" className="m-4 w-72"><CardBody object={current} /></article><button onClick={() => setOpen(true)}>Open workspace</button><ObjectDrawer object={open ? current : null} onObjectUpdated={setCurrent} onClose={() => setOpen(false)} activityVersion={0} onRefreshActivity={() => {}} onDeleteObject={noop} onCategoryChange={noop} onLifecycle={noop} onToggleChecklist={noop} onEditField={noop} onAddChecklist={noop} onRenameChecklist={noop} onDeleteChecklist={noop} onReorderChecklist={noop} onApplyProgress={noop} onApplyReplan={noop} onOpenObject={() => {}} onUpdateRecurrence={noop} onUpdateNote={noop} /></>;
+  const [open, setOpen] = useState(!(window as unknown as { cardOnly?: boolean }).cardOnly);
+  const [minimized, setMinimized] = useState(false);
+  return <><div data-testid="card" className="m-4 w-72"><ObjectCard object={current} minimized={minimized} pending={false} dragEnabled={false} onSelect={() => setOpen(true)} onToggleMinimize={() => setMinimized((value) => !value)} onCompleteNextAction={() => {}} onEstimateApplied={setCurrent} /></div><button onClick={() => setOpen(true)}>Open workspace</button><ObjectDrawer object={open ? current : null} onObjectUpdated={setCurrent} onClose={() => setOpen(false)} activityVersion={0} onRefreshActivity={() => {}} onDeleteObject={noop} onCategoryChange={noop} onLifecycle={noop} onToggleChecklist={noop} onEditField={noop} onAddChecklist={noop} onRenameChecklist={noop} onDeleteChecklist={noop} onReorderChecklist={noop} onApplyProgress={noop} onApplyReplan={noop} onOpenObject={() => {}} onUpdateRecurrence={noop} onUpdateNote={noop} /></>;
 }
 createRoot(document.getElementById("root")!).render(<Harness />);

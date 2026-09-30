@@ -79,6 +79,10 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   function refreshActivity(objectId: string) {
     setActivityVersions((versions) => ({ ...versions, [objectId]: (versions[objectId] ?? 0) + 1 }));
   }
+  function handleEstimateApplied(saved: ManagedObject) {
+    setObjects((items) => items.map((item) => item.id === saved.id ? saved : item));
+    refreshActivity(saved.id);
+  }
   const [objects, setObjects] = useState<ManagedObject[]>(initialObjects.filter((object) => !object.archivedAt));
   const [error, setError] = useState<string | null>(initialError);
   const [archiveStatus, setArchiveStatus] = useState<ObjectStatus | null>(null);
@@ -515,7 +519,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <MobileBoard objects={visibleObjects} activeStatus={mobileStatus} onStatusChange={setMobileStatus} onSelect={handleSelect} selectedId={selectedId} minimizedIds={minimizedIds} pendingIds={pendingCompleteIds} onToggleMinimize={toggleMinimized} onCompleteNextAction={handleCompleteNextAction} onMoveStatus={handleMobileMoveStatus} />
+          <MobileBoard objects={visibleObjects} activeStatus={mobileStatus} onStatusChange={setMobileStatus} onSelect={handleSelect} selectedId={selectedId} minimizedIds={minimizedIds} pendingIds={pendingCompleteIds} onToggleMinimize={toggleMinimized} onCompleteNextAction={handleCompleteNextAction} onMoveStatus={handleMobileMoveStatus} onEstimateApplied={handleEstimateApplied} />
           <div ref={boardScrollRef} onScroll={updateBoardScrollEdges} className="hidden h-full items-start gap-3 overflow-x-auto overflow-y-auto bg-slate-50 p-4 pb-20 sm:gap-4 sm:p-5 sm:pb-20 md:flex">
             {COLUMNS.map((column) => (
               <Column
@@ -528,6 +532,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
                 pendingIds={pendingCompleteIds}
                 onToggleMinimize={toggleMinimized}
                 onCompleteNextAction={handleCompleteNextAction}
+                onEstimateApplied={handleEstimateApplied}
                 onArchive={() => { setArchiveStatus(column.id); setSelectedId(null); setHistoricalObject(null); }}
                 onUpcoming={column.id === "idea" ? () => void openUpcomingOccurrences() : undefined}
               />
