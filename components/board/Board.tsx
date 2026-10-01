@@ -98,7 +98,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [isAICreateOpen, setIsAICreateOpen] = useState(false);
   const [isManualCreateOpen, setIsManualCreateOpen] = useState(false);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
-  const [minimizedIds, setMinimizedIds] = useState<Set<string>>(() => new Set(initialObjects.filter((object) => object.status === "idea").map((object) => object.id)));
+  const [minimizedIds, setMinimizedIds] = useState<Set<string>>(() => new Set(initialObjects.filter((object) => object.status === "idea" || object.status === "done").map((object) => object.id)));
   const [pendingCompleteIds, setPendingCompleteIds] = useState<Set<string>>(new Set());
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilterValue>(allCategoryFilter);
   const [categoryFilterHydrated, setCategoryFilterHydrated] = useState(false);
@@ -243,6 +243,8 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     if (currentTargetIds.length === reordered.orderedObjectIds.length && currentTargetIds.every((id, index) => id === reordered.orderedObjectIds[index])) return;
 
     setObjects(reordered.objects);
+    const wasMinimized = minimizedIds.has(objectId);
+    if (newStatus === "done") setMinimizedIds((current) => new Set(current).add(objectId));
     setError(null);
 
     try {
@@ -251,6 +253,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
       refreshActivity(objectId);
     } catch {
       setObjects(previousObjects);
+      if (newStatus === "done" && !wasMinimized) setMinimizedIds((current) => { const next = new Set(current); next.delete(objectId); return next; });
       setError("Could not save the Object's position. Please try again.");
     }
   }
@@ -267,6 +270,8 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     const reordered = reorderBoardObjects(objects, objectId, targetStatus, null, false, new Set(visibleObjects.map((item) => item.id)));
     if (!reordered) return;
     setObjects(reordered.objects);
+    const wasMinimized = minimizedIds.has(objectId);
+    if (targetStatus === "done") setMinimizedIds((current) => new Set(current).add(objectId));
     setError(null);
     try {
       const savedObjects = await reorderObjectsAction({ objectId, targetStatus, orderedObjectIds: reordered.orderedObjectIds });
@@ -274,6 +279,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
       refreshActivity(objectId);
     } catch {
       setObjects(previousObjects);
+      if (targetStatus === "done" && !wasMinimized) setMinimizedIds((current) => { const next = new Set(current); next.delete(objectId); return next; });
       setError("Could not move the Object. Please try again.");
     }
   }

@@ -115,7 +115,7 @@ try {
     assert.equal(await page.evaluate(() => window.estimateWrites), 0);
     await card.getByRole("button", { name: "Apply", exact: true }).click();
     await action.waitFor();
-    assert.equal(await action.getAttribute("title"), "Estimated total ≈ 1h 30m");
+    assert.equal(await action.getAttribute("title"), "Estimated remaining ≈ 1h 30m");
     assert.equal(await page.evaluate(() => window.estimateWrites), 1);
     assert.equal(await page.getByRole("dialog").count(), 0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

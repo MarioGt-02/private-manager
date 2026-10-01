@@ -227,7 +227,7 @@ describe("estimate UI", () => {
   it("hides unestimated card effort, shows remaining and partial count", async () => {
     const object = await make(); expect(renderToStaticMarkup(createElement(CardBody, { object }))).not.toContain("⏱");
     const estimated = { ...object, checklist: object.checklist.map((item, index) => ({ ...item, estimatedMinutes: index ? null : 90 })) };
-    const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated, onEstimateApplied: vi.fn() })); expect(markup).toContain("⏱ ≈ 1h 30m"); expect(markup).toContain("Estimated total ≈ 1h 30m");
+    const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated, onEstimateApplied: vi.fn() })); expect(markup).toContain("⏱ ≈ 1h 30m"); expect(markup).toContain("Estimated remaining ≈ 1h 30m");
   });
   it("summary returns no misleading zero for an unestimated Object", () => expect(renderToStaticMarkup(createElement(EstimateSummary, { items: [leaf("a", null)] }))).toBe(""));
   it("offers Card estimation when minimized, hides it on empty or historical cards", async () => {
@@ -238,12 +238,12 @@ describe("estimate UI", () => {
     expect(render({ ...object, archivedAt: new Date().toISOString() })).not.toContain("Estimate time:");
     expect(render({ ...object, cancelledAt: new Date().toISOString() })).not.toContain("Estimate time:");
   });
-  it("displays total rather than only remaining, retains partial-estimate warning", async () => {
+  it("displays remaining rather than total, retains partial-estimate warning", async () => {
     const object = await make();
-    const estimated = { ...object, checklist: object.checklist.map((item, index) => ({ ...item, estimatedMinutes: index ? 45 : 90 })) };
+    const estimated = { ...object, checklist: object.checklist.map((item, index) => ({ ...item, completed: index === 0, estimatedMinutes: index ? 45 : 90 })) };
     const markup = renderToStaticMarkup(createElement(CardBody, { object: estimated, minimized: true, onEstimateApplied: vi.fn() }));
-    expect(markup).toContain("⏱ ≈ 2h 15m");
-    expect(markup).toContain("Estimated total ≈ 2h 15m");
+    expect(markup).toContain("⏱ ≈ 45m");
+    expect(markup).toContain("Estimated remaining ≈ 45m");
     expect(markup).not.toContain("Estimated Time · optional");
   });
   it("offers explicit AI missing/all actions and no fixed-width input", async () => {
