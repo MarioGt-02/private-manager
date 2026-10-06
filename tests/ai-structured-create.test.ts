@@ -63,6 +63,23 @@ const maintenanceTable = {
 
 const scheduledRecurrence = { frequency: "yearly" as const, interval: 1, basis: "scheduled_date" as const, nextDate: "2027-03-31" };
 
+function expectStrictObjectSchemas(value: unknown): void {
+  if (typeof value !== "object" || value === null) return;
+  if (Array.isArray(value)) {
+    value.forEach(expectStrictObjectSchemas);
+    return;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (record.type === "object") {
+    expect(record.additionalProperties).toBe(false);
+    const properties = record.properties as Record<string, unknown>;
+    expect(record.required).toEqual(expect.arrayContaining(Object.keys(properties)));
+  }
+
+  Object.values(record).forEach(expectStrictObjectSchemas);
+}
+
 async function seedCategory(name = "Vehicles") {
   const id = "c0000000-0000-4000-8000-000000000001";
   await db.insert(schema.categories).values({ id, name, color: "amber" });
@@ -178,6 +195,13 @@ describe("Chat structured draft pass-through", () => {
     expect(inputString).toContain("monthly");
     expect(inputString).toContain("Maintenance");
     expect(inputString).toContain("carryForward");
+  });
+
+  it("sends a strict schema with every object property required", async () => {
+    chatOutput(null, "clarifying");
+    const response = await chat(request({ messages: [{ role: "user", content: "你好" }] }));
+    expect(response.status).toBe(200);
+    expectStrictObjectSchemas(mocks.response.mock.calls[0][0].text.format.schema);
   });
 });
 

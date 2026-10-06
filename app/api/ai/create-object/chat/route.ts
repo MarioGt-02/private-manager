@@ -48,9 +48,9 @@ const chatResponseFormat = {
           {
             type: "object",
             additionalProperties: false,
-            required: ["title", "goal", "currentState", "nextAction", "checklist", "suggestedCategoryName"],
+            required: ["title", "goal", "currentState", "nextAction", "checklist", "suggestedCategoryName", "recurrence", "table"],
             properties: {
-              suggestedCategoryName: { type: ["string", "null"] },
+              suggestedCategoryName: { anyOf: [{ type: "string" }, { type: "null" }] },
               title: { type: "string" }, goal: { type: "string" },
               currentState: { type: "string" }, nextAction: { type: "string" },
               checklist: { type: "array", items: {
@@ -63,11 +63,12 @@ const chatResponseFormat = {
               } },
               recurrence: { anyOf: [{ type: "null" }, {
                 type: "object", additionalProperties: false,
+                required: ["frequency", "interval", "basis", "nextDate"],
                 properties: {
-                  frequency: { type: "string", enum: ["daily", "weekly", "monthly", "yearly"] },
-                  interval: { type: "integer", minimum: 1, maximum: 100 },
-                  basis: { type: "string", enum: ["scheduled_date", "completion_date"] },
-                  nextDate: { type: ["string", "null"] },
+                  frequency: { anyOf: [{ type: "string", enum: ["daily", "weekly", "monthly", "yearly"] }, { type: "null" }] },
+                  interval: { anyOf: [{ type: "integer" }, { type: "null" }] },
+                  basis: { anyOf: [{ type: "string", enum: ["scheduled_date", "completion_date"] }, { type: "null" }] },
+                  nextDate: { anyOf: [{ type: "string" }, { type: "null" }] },
                 },
               }] },
               table: { anyOf: [{ type: "null" }, {
@@ -77,11 +78,11 @@ const chatResponseFormat = {
                   title: { type: "string" },
                   columns: { type: "array", items: {
                     type: "object", additionalProperties: false,
-                    required: ["name", "type"],
+                    required: ["name", "type", "currency", "carryForward"],
                     properties: {
                       name: { type: "string" },
                       type: { type: "string", enum: ["text", "number", "date", "currency", "checkbox"] },
-                      currency: { type: ["string", "null"] },
+                      currency: { anyOf: [{ type: "string" }, { type: "null" }] },
                       carryForward: { type: "boolean" },
                     },
                   } },
@@ -90,7 +91,7 @@ const chatResponseFormat = {
                     required: ["carryForward", "cells"],
                     properties: {
                       carryForward: { type: "boolean" },
-                      cells: { type: "array", items: { type: ["string", "null"] } },
+                      cells: { type: "array", items: { anyOf: [{ type: "string" }, { type: "null" }] } },
                     },
                   } },
                 },

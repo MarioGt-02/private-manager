@@ -29,9 +29,9 @@ export const draftChecklistItemSchema = z.object({
  * during clarification without discarding what it already knows.
  */
 export const draftRecurrenceSchema = z.object({
-  frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).optional(),
-  interval: z.number().int().min(1).max(100).optional(),
-  basis: z.enum(["scheduled_date", "completion_date"]).optional(),
+  frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).nullable().optional(),
+  interval: z.number().int().min(1).max(100).nullable().optional(),
+  basis: z.enum(["scheduled_date", "completion_date"]).nullable().optional(),
   nextDate: z.string().nullable().optional(),
 });
 

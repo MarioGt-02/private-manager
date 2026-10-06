@@ -30,7 +30,7 @@ const format = {
       goal: { anyOf: [{ type: "string" }, { type: "null" }] },
       currentState: { type: "string" },
       reasonSummary: { type: "string" },
-      checklist: { type: "array", maxItems: 20, items: { type: "object", additionalProperties: false, required: ["sourceItemId", "title", "completed", "changeType", "children"], properties: { sourceItemId: { anyOf: [{ type: "string" }, { type: "null" }] }, title: { type: "string" }, completed: { type: "boolean" }, changeType: { type: "string", enum: ["keep", "modify", "add"] }, children: { type: "array", maxItems: 10, items: { type: "object", additionalProperties: false, required: ["sourceItemId", "title", "completed", "changeType"], properties: { sourceItemId: { anyOf: [{ type: "string" }, { type: "null" }] }, title: { type: "string" }, completed: { type: "boolean" }, changeType: { type: "string", enum: ["keep", "modify", "add"] } } } } } } },
+      checklist: { type: "array", items: { type: "object", additionalProperties: false, required: ["sourceItemId", "title", "completed", "changeType", "children"], properties: { sourceItemId: { anyOf: [{ type: "string" }, { type: "null" }] }, title: { type: "string" }, completed: { type: "boolean" }, changeType: { type: "string", enum: ["keep", "modify", "add"] }, children: { type: "array", items: { type: "object", additionalProperties: false, required: ["sourceItemId", "title", "completed", "changeType"], properties: { sourceItemId: { anyOf: [{ type: "string" }, { type: "null" }] }, title: { type: "string" }, completed: { type: "boolean" }, changeType: { type: "string", enum: ["keep", "modify", "add"] } } } } } } },
       removedItemIds: { type: "array", items: { type: "string" } },
       summary: { type: "string" },
     },

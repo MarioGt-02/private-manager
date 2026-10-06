@@ -4,7 +4,7 @@ import { getObject } from "@/lib/db/queries";
 import { getOpenAIClient } from "@/lib/ai/openai";
 import { CREATE_OBJECT_MODEL, OPENAI_REASONING_EFFORT, OPENAI_STORE } from "@/lib/ai/prompts";
 import { ESTIMATE_PROMPT, estimateRequestSchema, estimateOutputSchema, estimateSnapshot, getEstimateTargets, validateEstimateOutput, EstimateValidationError } from "@/lib/estimates/model";
-import { getActionableLeaves, ESTIMATE_MINUTES_MAX } from "@/lib/estimates/time";
+import { getActionableLeaves } from "@/lib/estimates/time";
 import { classifyAIError, errorResponse } from "@/lib/errors/server";
 import { newRequestId, toValidationIssues } from "@/lib/errors/serialize";
 
@@ -14,8 +14,8 @@ const ROUTE = "/api/ai/objects/[objectId]/estimate-time/analyze";
 const format = {
   type: "json_schema" as const, name: "effort_estimates", strict: true,
   schema: { type: "object", additionalProperties: false, required: ["estimates", "warning"], properties: {
-    estimates: { type: "array", maxItems: 500, items: { type: "object", additionalProperties: false, required: ["checklistItemId", "estimatedMinutes"], properties: {
-      checklistItemId: { type: "string" }, estimatedMinutes: { anyOf: [{ type: "integer", minimum: 1, maximum: ESTIMATE_MINUTES_MAX }, { type: "null" }] },
+    estimates: { type: "array", items: { type: "object", additionalProperties: false, required: ["checklistItemId", "estimatedMinutes"], properties: {
+      checklistItemId: { type: "string" }, estimatedMinutes: { anyOf: [{ type: "integer" }, { type: "null" }] },
     } } }, warning: { anyOf: [{ type: "string" }, { type: "null" }] },
   } },
 };

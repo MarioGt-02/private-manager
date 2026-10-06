@@ -28,7 +28,7 @@ const format = {
       nextAction: { type: "string" },
       completedItemIds: { type: "array", items: { type: "string" } },
       reopenedItemIds: { type: "array", items: { type: "string" } },
-      newChecklistItems: { type: "array", maxItems: 3, items: { type: "object", additionalProperties: false, required: ["title", "parentItemId"], properties: { title: { type: "string" }, parentItemId: { anyOf: [{ type: "string" }, { type: "null" }] } } } },
+      newChecklistItems: { type: "array", items: { type: "object", additionalProperties: false, required: ["title", "parentItemId"], properties: { title: { type: "string" }, parentItemId: { anyOf: [{ type: "string" }, { type: "null" }] } } } },
       summary: { type: "string" },
     },
   },

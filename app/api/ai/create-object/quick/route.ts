@@ -28,7 +28,7 @@ const format = {
       goal: { type: "string" },
       currentState: { type: "string" },
       nextAction: { type: "string" },
-      suggestedCategoryName: { type: ["string", "null"] },
+      suggestedCategoryName: { anyOf: [{ type: "string" }, { type: "null" }] },
       checklist: { type: "array", items: {
         type: "object", additionalProperties: false,
         required: ["title", "children"],
