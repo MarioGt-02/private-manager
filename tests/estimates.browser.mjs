@@ -49,7 +49,8 @@ try {
     });
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     const dialog = page.getByRole("dialog"); await dialog.waitFor();
-    const section = dialog.getByRole("region", { name: "Estimated Time", exact: true });
+    await dialog.getByRole("button", { name: "Add Time estimates", exact: true }).click();
+    const section = dialog.getByLabel("Estimated Time", { exact: true });
     assert.equal(await section.getByText("≈ 0m", { exact: true }).count(), 0);
     await dialog.getByRole("button", { name: "Edit estimate: Implement API", exact: true }).click();
     await dialog.getByLabel("Estimated duration: Implement API", { exact: true }).fill("garbage");

@@ -9,6 +9,12 @@ interface TablesSectionProps {
   /** Carry-forward controls are only rendered for recurring Objects. */
   recurring: boolean;
   disabled: boolean;
+  /** Re-fetch after an AI Replan or another external table mutation. */
+  refreshToken?: number;
+  /** Keep unused workspace tools in the compact Add to Object row. */
+  hideWhenEmpty?: boolean;
+  revealEmpty?: boolean;
+  onContentChange?: (hasContent: boolean) => void;
   /** Refresh the Drawer Activity list after a structural change. */
   onActivityChange: () => void;
 }
@@ -40,7 +46,7 @@ function withCells(table: ObjectTableView, cells: { rowId: string; columnId: str
  * Object Tables inside the Drawer. Records load only when the Drawer needs
  * them, so the Board never fetches every table and cell up front.
  */
-export function TablesSection({ objectId, recurring, disabled, onActivityChange }: TablesSectionProps) {
+export function TablesSection({ objectId, recurring, disabled, refreshToken = 0, hideWhenEmpty = false, revealEmpty = false, onContentChange, onActivityChange }: TablesSectionProps) {
   const [tables, setTables] = useState<ObjectTableView[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -54,6 +60,8 @@ export function TablesSection({ objectId, recurring, disabled, onActivityChange 
 
   // Synced in an effect so handlers always read the latest server-confirmed rows.
   useEffect(() => { latest.current = tables; }, [tables]);
+  const hasContent = !!tables?.length || !!error;
+  useEffect(() => { onContentChange?.(hasContent); }, [hasContent, onContentChange]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -71,7 +79,7 @@ export function TablesSection({ objectId, recurring, disabled, onActivityChange 
         if (active) setLoading(false);
       });
     return () => { active = false; controller.abort(); };
-  }, [objectId]);
+  }, [objectId, refreshToken]);
 
   function replaceTable(next: ObjectTableView) {
     setTables((current) => current ? current.map((table) => (table.id === next.id ? next : table)) : current);
@@ -174,6 +182,8 @@ export function TablesSection({ objectId, recurring, disabled, onActivityChange 
   function updateColumn(table: ObjectTableView, columnId: string, patch: ColumnPatch) {
     void mutate(table, { action: "update_column", columnId, ...patch });
   }
+
+  if (hideWhenEmpty && !revealEmpty && !hasContent && !adding && !busy) return null;
 
   return <section aria-label="Tables" className="mt-4 border-t border-slate-200 pt-3">
     <div className="mb-1 flex items-center justify-between gap-2">

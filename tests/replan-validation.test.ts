@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prepareReplanProposal, repairReplanSourceIds, validateReplanProposal, ReplanValidationError } from "@/lib/ai/replan-validation";
 import type { ChecklistItem } from "@/lib/types/object";
+import { explicitTableRequestTitle, replanProposalSchema } from "@/lib/ai/replan";
 
 const existing: ChecklistItem[] = [
   { id: "parent", title: "Parent", parentId: null, completed: true, position: 0 },
@@ -10,6 +11,17 @@ const existing: ChecklistItem[] = [
 const item = (id: string | null) => ({ sourceItemId: id, title: "Plan item", completed: false, changeType: "keep" as const, children: [] });
 
 describe("Replan proposal validation", () => {
+  it("recognizes only the explicit named-table command, not mixed changes or mentions", () => {
+    expect(explicitTableRequestTitle("新增表格：电脑部件检查表格")).toBe("电脑部件检查表格");
+    expect(explicitTableRequestTitle("Add table: Parts")).toBe("Parts");
+    for (const text of ["新增表格：Parts，并修改计划", "新增表格：Parts 并且修改计划", "已经新增表格：Parts", "使用电脑部件检查表格完成检查", "新增表格："]) expect(explicitTableRequestTitle(text)).toBeNull();
+  });
+
+  it("allows an empty factual state for table-only previews but not legacy replans", () => {
+    const base = { title: null, goal: null, currentState: "", reasonSummary: "Add records", checklistMode: "preserve", checklist: [], removedItemIds: [], summary: "Proposed table" };
+    expect(replanProposalSchema.safeParse(base).success).toBe(true);
+    expect(replanProposalSchema.safeParse({ ...base, checklistMode: "replan", checklist: [item(null)] }).success).toBe(false);
+  });
   it("preserves omitted parent/child IDs and completion before preview without mutation", () => {
     const input = { checklist: [item("other")], removedItemIds: [] };
     const before = structuredClone({ input, existing });

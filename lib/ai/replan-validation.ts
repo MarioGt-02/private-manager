@@ -1,9 +1,32 @@
-import type { ChecklistItem } from "@/lib/types/object";
+import type { ChecklistItem, ManagedObject } from "@/lib/types/object";
 import type { z } from "zod";
 import type { replanProposalSchema } from "./replan";
 
 type Proposal = Pick<z.infer<typeof replanProposalSchema>, "checklist" | "removedItemIds">;
 type Item = Proposal["checklist"][number];
+
+/** Table-only proposals cannot rewrite Object facts or substitute a checklist step for a real table. */
+export function prepareTableOnlyReplan(proposal: z.infer<typeof replanProposalSchema>, object: ManagedObject) {
+  if (proposal.tablesToAdd.length === 0) {
+    throw new ReplanValidationError("MISSING_REQUESTED_TABLE", "AI did not generate the requested table. No changes were saved. Try generating the proposal again.");
+  }
+  const keep = (item: ChecklistItem) => ({ sourceItemId: item.id, title: item.title, completed: item.completed, changeType: "keep" as const });
+  const summary = `Propose adding: ${proposal.tablesToAdd.map((table) => table.title).join(", ")}. The Object fields, checklist and Next Action remain unchanged. Tables will be saved only after confirmation.`;
+  return {
+    ...proposal,
+    title: null,
+    goal: null,
+    currentState: object.currentState,
+    checklistMode: "preserve" as const,
+    checklist: object.checklist.filter((item) => item.parentId === null).sort((a, b) => a.position - b.position).map((item) => ({
+      ...keep(item),
+      children: object.checklist.filter((child) => child.parentId === item.id).sort((a, b) => a.position - b.position).map(keep),
+    })),
+    removedItemIds: [],
+    reasonSummary: summary,
+    summary,
+  };
+}
 
 /** Repair only an unambiguous title-to-ID mismatch from the model. */
 export function repairReplanSourceIds<T extends Proposal>(proposal: T, existing: ChecklistItem[]): T {

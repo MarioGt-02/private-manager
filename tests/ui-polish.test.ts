@@ -35,10 +35,10 @@ describe("Phase 9 review previews", () => {
         { sourceItemId: "uuid-completed", title: "Measure wall", completed: true, changeType: "keep" as const, children: [] },
         { sourceItemId: "uuid-current", title: "Prepare desk clamps", completed: false, changeType: "modify" as const, children: [] },
         { sourceItemId: null, title: "Test clamp load", completed: false, changeType: "add" as const, children: [] },
-      ], removedItemIds: ["uuid-last"],
+      ], removedItemIds: ["uuid-last"], checklistMode: "replan" as const, tablesToAdd: [{ title: "Parts", columns: [{ name: "Part", type: "text" as const, currency: null, carryForward: false }], rows: [{ carryForward: false, cells: ["RAM"] }] }],
     };
     const html = renderToStaticMarkup(createElement(ReplanDiff, { object, proposal }));
-    for (const text of ["KEEP", "MODIFY", "ADD", "REMOVE", "Prepare screws", "Prepare desk clamps", "Install clamp board", "Organize equipment", "Organize without drilling", "Final checklist"]) expect(html).toContain(text);
+    for (const text of ["KEEP", "MODIFY", "ADD", "REMOVE", "Prepare screws", "Prepare desk clamps", "Install clamp board", "Organize equipment", "Organize without drilling", "Final checklist", "New tables", "Parts", "RAM"]) expect(html).toContain(text);
     expect(html).not.toContain("uuid-");
   });
   it("safely presents stale IDs and multilingual/HTML-like content", () => {

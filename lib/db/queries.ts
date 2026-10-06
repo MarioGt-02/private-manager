@@ -2,9 +2,9 @@ import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lte, ne, or,
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
 import { categories, checklistItems, objectDependencies, objects, objectUpdates } from "./schema";
-import { copyTablesForRecurrence } from "./tables";
+import { copyTablesForRecurrence, insertTableStructureInTx } from "./tables";
 import { InvalidCategoryError } from "@/lib/categories/suggestion";
-import { validateReplanProposal } from "@/lib/ai/replan-validation";
+import { ReplanValidationError, validateReplanProposal } from "@/lib/ai/replan-validation";
 import type {
   ChecklistItem,
   ManagedObject,
@@ -865,15 +865,28 @@ export async function applyAIProgressUpdate(objectId: string, update: { currentS
 
 type ReplanChecklistChild = { sourceItemId: string | null; title: string; completed: boolean; changeType: "keep" | "modify" | "add" };
 type ReplanChecklistItem = ReplanChecklistChild & { children: ReplanChecklistChild[] };
-type ReplanProposal = { title: string | null; goal: string | null; currentState: string; checklist: ReplanChecklistItem[]; removedItemIds: string[]; summary: string };
+type ReplanTable = { title: string; columns: { name: string; type: "text" | "number" | "date" | "currency" | "checkbox"; currency: string | null; carryForward: boolean }[]; rows: { carryForward: boolean; cells: string[] }[] };
+type ReplanProposal = { proposalId?: string; title: string | null; goal: string | null; currentState: string; checklistMode?: "preserve" | "replan"; checklist: ReplanChecklistItem[]; removedItemIds: string[]; tablesToAdd?: ReplanTable[]; summary: string };
 
 export async function applyAIReplan(objectId: string, proposal: ReplanProposal) {
+  if (proposal.checklistMode === "preserve" && !proposal.tablesToAdd?.length) {
+    throw new ReplanValidationError("MISSING_REQUESTED_TABLE", "The table-only proposal contains no tables. Generate a new proposal. No changes were saved.");
+  }
   const db = getDb();
   await db.transaction(async (tx) => {
     const [object] = await tx.select({ id: objects.id }).from(objects).where(eq(objects.id, objectId)).for("update");
     if (!object) throw new Error("Object not found.");
+    // The locked Object serializes retries. Reuse the actual Activity record as
+    // the confirmation marker so a network retry cannot add the same tables twice.
+    if (proposal.proposalId) {
+      const [applied] = await tx.select().from(objectUpdates).where(eq(objectUpdates.id, proposal.proposalId));
+      if (applied) {
+        if (applied.objectId !== objectId || applied.type !== "ai_replan") throw new Error("UPDATE_CONFLICT");
+        return;
+      }
+    }
     const existing = await tx.select().from(checklistItems).where(eq(checklistItems.objectId, objectId));
-    validateReplanProposal(proposal, existing.map(toChecklistItem));
+    if (proposal.checklistMode !== "preserve") validateReplanProposal(proposal, existing.map(toChecklistItem));
 
     const applyItem = async (item: { sourceItemId: string | null; title: string; completed: boolean }, parentId: string | null, position: number): Promise<string> => {
       if (item.sourceItemId) {
@@ -885,21 +898,24 @@ export async function applyAIReplan(objectId: string, proposal: ReplanProposal) 
       return newId;
     };
 
-    for (const [ti, item] of proposal.checklist.entries()) {
-      const parentId = await applyItem(item, null, ti);
-      for (const [ci, child] of item.children.entries()) {
-        await applyItem(child, parentId, ci);
+    if (proposal.checklistMode !== "preserve") {
+      for (const [ti, item] of proposal.checklist.entries()) {
+        const parentId = await applyItem(item, null, ti);
+        for (const [ci, child] of item.children.entries()) {
+          await applyItem(child, parentId, ci);
+        }
+      }
+
+      if (proposal.removedItemIds.length) {
+        for (const id of proposal.removedItemIds) await tx.delete(checklistItems).where(eq(checklistItems.id, id));
       }
     }
 
-    if (proposal.removedItemIds.length) {
-      for (const id of proposal.removedItemIds) await tx.delete(checklistItems).where(eq(checklistItems.id, id));
-    }
-
-    await syncParentCompletion(tx, objectId);
+    if (proposal.checklistMode !== "preserve") await syncParentCompletion(tx, objectId);
     const finalItems = await tx.select().from(checklistItems).where(eq(checklistItems.objectId, objectId));
-    await tx.update(objects).set({ ...(proposal.title ? { title: proposal.title } : {}), ...(proposal.goal ? { goal: proposal.goal } : {}), currentState: proposal.currentState, nextAction: deriveNextAction(finalItems), updatedAt: new Date() }).where(eq(objects.id, objectId));
-    await tx.insert(objectUpdates).values({ id: randomUUID(), objectId, type: "ai_replan", content: proposal.summary });
+    for (const table of proposal.tablesToAdd ?? []) await insertTableStructureInTx(tx, objectId, table);
+    await tx.update(objects).set({ ...(proposal.checklistMode === "preserve" ? {} : { ...(proposal.title ? { title: proposal.title } : {}), ...(proposal.goal ? { goal: proposal.goal } : {}), currentState: proposal.currentState, nextAction: deriveNextAction(finalItems) }), updatedAt: new Date() }).where(eq(objects.id, objectId));
+    await tx.insert(objectUpdates).values({ id: proposal.proposalId ?? randomUUID(), objectId, type: "ai_replan", content: proposal.summary });
   });
   const result = await getObject(objectId);
   if (!result) throw new Error("Object not found.");

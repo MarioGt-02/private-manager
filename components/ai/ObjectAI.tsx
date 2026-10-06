@@ -10,7 +10,10 @@ import { ApiError, localError, parseErrorDetail } from "@/lib/errors/client";
 import type { ErrorDetail } from "@/lib/errors/types";
 
 type Progress = z.infer<typeof progressUpdateSchema>;
-type Replan = z.infer<typeof replanProposalSchema>;
+type Replan = Omit<z.infer<typeof replanProposalSchema>, "checklistMode" | "tablesToAdd"> & {
+  checklistMode?: "preserve" | "replan";
+  tablesToAdd?: z.infer<typeof replanProposalSchema>["tablesToAdd"];
+};
 
 export function ValueChange({ label, before, after }: { label: string; before: string; after: string }) {
   return <div className="min-w-0 space-y-1">
@@ -60,6 +63,7 @@ export function ReplanDiff({ object, proposal }: { object: ManagedObject; propos
   return <div className="preview-panel">
     <h4 className="text-sm font-semibold">Review replan</h4>
     <p className="content-wrap text-sm leading-6 text-slate-700">{proposal.reasonSummary}</p>
+    {proposal.checklistMode === "preserve" ? <p className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">Only adds tables. Title, Goal, Current State, Checklist and Next Action remain unchanged. Tables are saved only after you apply.</p> : <>
     {proposal.title !== null && <ValueChange label="Title" before={object.title} after={proposal.title} />}
     {proposal.goal !== null && <ValueChange label="Goal" before={object.goal} after={proposal.goal} />}
     <ValueChange label="Current State" before={object.currentState} after={proposal.currentState} />
@@ -88,6 +92,15 @@ export function ReplanDiff({ object, proposal }: { object: ManagedObject; propos
       ))}
     </div>
     <div><p className="section-label mb-2">Final checklist · {flat.length} items</p><ol className="list-inside list-decimal space-y-2 text-sm">{flat.map((item, i) => <li key={i} className={`content-wrap ${item.parentId ? "ml-6" : ""}`}>{item.completed ? "✓ " : "○ "}{item.title}</li>)}</ol></div>
+    </>}
+    <div className="space-y-2">
+      <p className="section-label">New tables</p>
+      {!proposal.tablesToAdd?.length && <p className="text-sm text-slate-500">No tables to add.</p>}
+      {proposal.tablesToAdd?.map((table, tableIndex) => <div key={tableIndex} className="overflow-x-auto rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+        <div className="mb-2 flex items-center justify-between gap-2"><h5 className="text-sm font-semibold text-emerald-950">+ {table.title}</h5><span className="text-xs text-emerald-800">{table.rows.length} rows</span></div>
+        <table className="min-w-full border-collapse text-left text-xs"><thead><tr>{table.columns.map((column, columnIndex) => <th key={columnIndex} className="border-b border-emerald-200 px-2 py-1 font-semibold text-emerald-900">{column.name}</th>)}</tr></thead><tbody>{table.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.cells.map((cell, cellIndex) => <td key={cellIndex} className="border-b border-emerald-100 px-2 py-1 text-emerald-950">{cell || "—"}</td>)}</tr>)}</tbody></table>
+      </div>)}
+    </div>
     <p className="content-wrap text-xs leading-5 text-slate-500">{proposal.summary}</p>
   </div>;
 }

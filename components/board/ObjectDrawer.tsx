@@ -11,6 +11,7 @@ import { CategorySelect } from "@/components/categories/CategorySelect";
 import { DependenciesSection } from "@/components/dependencies/DependenciesSection";
 import { TablesSection } from "@/components/tables/TablesSection";
 import { RecurrenceControls, type RecurrenceFormInput } from "@/components/recurrence/RecurrenceControls";
+import { summarizeEstimates } from "@/lib/estimates/time";
 import { COLUMNS, type ManagedObject } from "@/lib/types/object";
 
 interface ObjectDrawerProps {
@@ -41,6 +42,18 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
   const [lifecycleError, setLifecycleError] = useState("");
   const archived = !!object.archivedAt;
   const [pending, setPending] = useState(false);
+  const [revealed, setRevealed] = useState({ note: false, estimates: false, tables: false, dependencies: false, recurrence: false });
+  const [hasTables, setHasTables] = useState(false);
+  const [hasDependencies, setHasDependencies] = useState(false);
+  const hasNote = !!object.occurrenceNote?.trim();
+  const hasEstimates = summarizeEstimates(object.checklist).hasEstimates;
+  const unusedFeatures = [
+    { id: "note" as const, label: "Note", used: hasNote },
+    { id: "estimates" as const, label: "Time estimates", used: hasEstimates },
+    { id: "tables" as const, label: "Table", used: hasTables },
+    { id: "dependencies" as const, label: "Dependency", used: hasDependencies },
+    { id: "recurrence" as const, label: "Recurring", used: !!object.recurrence },
+  ].filter((feature) => !feature.used && !revealed[feature.id]);
   const lock = useRef(false);
   const completed = object.checklist.filter((item) => item.completed).length;
   const column = COLUMNS.find((item) => item.id === object.status);
@@ -95,9 +108,9 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
           <InlineEditableField label="Current State" value={object.currentState} multiline maxLength={1000} disabled={pending || archived} onSave={(value) => manual(() => onEditField(object.id, "currentState", value))} />
           <InlineEditableField label="Next Action" value={object.nextAction} multiline maxLength={500} disabled={pending || archived} onSave={(value) => manual(() => onEditField(object.id, "nextAction", value))} />
         </div>
-        <div className="mt-3">
+        {(hasNote || revealed.note) && <div className="mt-3">
           <InlineEditableField label="Occurrence note" value={object.occurrenceNote ?? ""} multiline emptyText="+ Add note" maxLength={2000} disabled={pending || archived} onSave={(value) => manual(() => onUpdateNote(object.id, value))} />
-        </div>
+        </div>}
         <section aria-label="Checklist" className="mt-4 border-t border-slate-200 pt-3">
           <div className="mb-1 flex items-center justify-between"><h3 className="section-label">Checklist</h3><span className="text-xs tabular-nums text-slate-500">{completed} / {object.checklist.length}</span></div>
           <Checklist items={object.checklist} disabled={pending || archived}
@@ -113,13 +126,17 @@ function DrawerContent({ object, activityVersion, onClose, onToggleChecklist, on
             onDelete={(id) => manual(() => onDeleteChecklist(object.id, id))}
             onReorder={(parentId, ids) => manual(() => onReorderChecklist(object.id, parentId, ids))} />
       </section>
-      <TimeEstimates object={object} disabled={pending || archived} onPendingChange={setPending} onUpdated={(saved) => { onObjectUpdated?.(saved); onRefreshActivity(object.id); }} />
-      <TablesSection objectId={object.id} recurring={!!object.recurrence} disabled={pending || archived} onActivityChange={() => onRefreshActivity(object.id)} />
-      <DependenciesSection objectId={object.id} disabled={pending || archived} onOpenObject={onOpenObject} />
-      <section aria-label="Recurring" className="mt-4 border-t border-slate-200 pt-3">
+      {!archived && unusedFeatures.length > 0 && <div aria-label="Add optional features" className="mt-3 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-xs text-slate-400">Add to Object</span>
+        {unusedFeatures.map((feature) => <button key={feature.id} type="button" className="btn-tertiary min-h-11 sm:min-h-8" disabled={pending} aria-label={`Add ${feature.label}`} onClick={() => setRevealed((current) => ({ ...current, [feature.id]: true }))}>+ {feature.label}</button>)}
+      </div>}
+      {(hasEstimates || revealed.estimates) && <TimeEstimates object={object} disabled={pending || archived} onPendingChange={setPending} onUpdated={(saved) => { onObjectUpdated?.(saved); onRefreshActivity(object.id); }} />}
+      <TablesSection objectId={object.id} recurring={!!object.recurrence} disabled={pending || archived} refreshToken={activityVersion} hideWhenEmpty revealEmpty={revealed.tables} onContentChange={setHasTables} onActivityChange={() => onRefreshActivity(object.id)} />
+      <DependenciesSection objectId={object.id} disabled={pending || archived} hideWhenEmpty revealEmpty={revealed.dependencies} onContentChange={setHasDependencies} onOpenObject={onOpenObject} />
+      {(object.recurrence || revealed.recurrence) && <section aria-label="Recurring" className="mt-4 border-t border-slate-200 pt-3">
         <h3 className="section-label mb-1">Recurring</h3>
         <RecurrenceControls config={object.recurrence} disabled={pending || archived} onSave={(config) => manual(() => onUpdateRecurrence(object.id, config))} />
-      </section>
+      </section>}
       <div hidden={archived} className="mt-4 border-t border-slate-200 pt-3">
         <ObjectAI object={object} disabled={pending} onPendingChange={setPending} onApplyProgress={onApplyProgress} onApplyReplan={onApplyReplan} />
       </div>

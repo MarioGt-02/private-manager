@@ -10,6 +10,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "./index";
 import { objectTableCells, objectTableColumns, objectTableRows, objectTables, objectUpdates, objects } from "./schema";
+import { finalizeTableSchema } from "@/lib/ai/schemas";
 import {
   parseCellValue,
   TABLE_LIMITS,
@@ -523,11 +524,18 @@ export async function insertTableStructureInTx(
     rows: { carryForward: boolean; cells: string[] }[];
   },
 ): Promise<void> {
+  // Validate here as well: transaction callers can bypass HTTP/AI schemas.
+  const validated = finalizeTableSchema.safeParse(structure);
+  if (!validated.success) throw new TableError("INVALID_CELL_VALUE");
+  structure = validated.data;
+  const existingTables = await tx.select({ id: objectTables.id, position: objectTables.position }).from(objectTables).where(eq(objectTables.objectId, objectId));
+  if (existingTables.length >= TABLE_LIMITS.tablesPerObject) throw new TableError("TABLES_LIMIT_REACHED");
   if (structure.columns.length > TABLE_LIMITS.columnsPerTable) throw new TableError("COLUMNS_LIMIT_REACHED");
   if (structure.rows.length > TABLE_LIMITS.rowsPerTable) throw new TableError("ROWS_LIMIT_REACHED");
 
   const tableId = randomUUID();
-  await tx.insert(objectTables).values({ id: tableId, objectId, title: structure.title, position: 0 });
+  const position = existingTables.reduce((max, table) => Math.max(max, table.position), -1) + 1;
+  await tx.insert(objectTables).values({ id: tableId, objectId, title: structure.title, position });
 
   const columnRecords = structure.columns.map((column, position) => ({
     id: randomUUID(),
@@ -555,7 +563,7 @@ export async function insertTableStructureInTx(
       }
     });
   });
-  await tx.insert(objectTableRows).values(rowRecords);
+  if (rowRecords.length) await tx.insert(objectTableRows).values(rowRecords);
   if (cellRecords.length) await tx.insert(objectTableCells).values(cellRecords);
 
   await tx.insert(objectUpdates).values({

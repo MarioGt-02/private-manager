@@ -23,6 +23,8 @@ import { ObjectDrawer } from "@/components/board/ObjectDrawer";
 import { Board } from "@/components/board/Board";
 import { TableGrid } from "@/components/tables/TableGrid";
 import { ColumnMenuPanel } from "@/components/tables/ColumnMenu";
+import { TablesSection } from "@/components/tables/TablesSection";
+import { DependenciesSection } from "@/components/dependencies/DependenciesSection";
 import type { ManagedObject } from "@/lib/types/object";
 import type { ObjectTableView } from "@/lib/tables/model";
 
@@ -135,13 +137,49 @@ describe("Object Workspace layout", () => {
     expect(markup).toContain("1 / 2");
   });
 
-  it("keeps Tables, Dependencies and Recurring in the content column", () => {
+  it("keeps unused remote tools in compact entry points while showing active recurrence", () => {
     const markup = drawerMarkup();
-    expect(markup).toContain("Tables / Records");
-    expect(markup).toContain("Loading tables…");
-    expect(markup).toContain("Dependencies");
+    expect(markup).toContain('aria-label="Add Table"');
+    expect(markup).toContain('aria-label="Add Dependency"');
+    expect(markup).not.toContain("Loading tables…");
+    expect(markup).not.toContain('aria-label="Dependencies"');
     expect(markup).toContain('aria-label="Recurring"');
     expect(markup).toContain("Every 1 year");
+  });
+
+  it("hides unused feature sections without hiding the core Object workflow", () => {
+    const markup = renderToStaticMarkup(createElement(ObjectDrawer, { ...drawerProps, object: { ...object, occurrenceNote: null, recurrence: null } }));
+    for (const label of ["Goal", "Current State", "Next Action", "Checklist", "Activity"]) expect(markup).toContain(label);
+    for (const label of ["Note", "Time estimates", "Table", "Dependency", "Recurring"]) expect(markup).toContain(`aria-label="Add ${label}"`);
+    for (const label of ["Estimated Time", "Tables", "Dependencies", "Recurring"]) expect(markup).not.toContain(`aria-label="${label}"`);
+    expect(markup).not.toContain("Occurrence note");
+    expect(markup).toContain("Replan");
+  });
+
+  it("automatically shows saved notes, recurrence and actionable estimates", () => {
+    const markup = renderToStaticMarkup(createElement(ObjectDrawer, { ...drawerProps, object: { ...object, checklist: object.checklist.map((item) => ({ ...item, estimatedMinutes: 30 })) } }));
+    expect(markup).toContain("Filter bought already");
+    expect(markup).toContain("Every 1 year");
+    expect(markup).toContain('aria-label="Estimated Time"');
+    for (const label of ["Note", "Time estimates", "Recurring"]) expect(markup).not.toContain(`aria-label="Add ${label}"`);
+  });
+
+  it("does not offer unused tools on archived Objects", () => {
+    const markup = renderToStaticMarkup(createElement(ObjectDrawer, { ...drawerProps, object: { ...object, archivedAt: "2026-10-06T00:00:00Z", recurrence: null, occurrenceNote: null } }));
+    expect(markup).not.toContain('aria-label="Add optional features"');
+    expect(markup).not.toContain('aria-label="Recurring"');
+    expect(markup).toContain("Restore to Board");
+  });
+
+  it("reveals remote tools on demand without changing their standalone defaults", () => {
+    const tables = { objectId: object.id, recurring: false, disabled: false, onActivityChange: noop };
+    const deps = { objectId: object.id, disabled: false, onOpenObject: noop };
+    expect(renderToStaticMarkup(createElement(TablesSection, { ...tables, hideWhenEmpty: true }))).toBe("");
+    expect(renderToStaticMarkup(createElement(DependenciesSection, { ...deps, hideWhenEmpty: true }))).toBe("");
+    for (const revealEmpty of [false, true]) {
+      expect(renderToStaticMarkup(createElement(TablesSection, { ...tables, hideWhenEmpty: revealEmpty, revealEmpty }))).toContain("Loading tables…");
+      expect(renderToStaticMarkup(createElement(DependenciesSection, { ...deps, hideWhenEmpty: revealEmpty, revealEmpty }))).toContain('aria-label="Dependencies"');
+    }
   });
 });
 

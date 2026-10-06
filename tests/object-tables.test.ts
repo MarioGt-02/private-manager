@@ -850,7 +850,7 @@ describe("Object Tables UI", () => {
     expect(plain).toContain('aria-label="Delete row 1"');
   });
 
-  it("keeps the Object Drawer layout, including Checklist and the new Tables area", async () => {
+  it("keeps core Object content visible and offers compact entries for unused tools", async () => {
     const object = await make();
     const markup = renderToStaticMarkup(createElement(ObjectDrawer, {
       object,
@@ -872,13 +872,13 @@ describe("Object Tables UI", () => {
       onUpdateNote: asyncNoop,
       onRefreshActivity: noop,
     }));
-    expect(markup).toContain("Tables / Records");
+    expect(markup).toContain('aria-label="Add Table"');
     expect(markup).toContain("Checklist");
-    expect(markup).toContain("Loading tables…");
-    // The existing Drawer sections are untouched.
+    expect(markup).not.toContain("Loading tables…");
+    // Core fields remain visible; remote tools reveal themselves when loaded with data.
     expect(markup).toContain("Current State");
     expect(markup).toContain("Next Action");
-    expect(markup).toContain("Dependencies");
+    expect(markup).toContain('aria-label="Add Dependency"');
     expect(markup).toContain("Activity");
   });
 });

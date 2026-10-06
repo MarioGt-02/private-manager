@@ -14,7 +14,7 @@ interface Deps {
   blocking: DepEntry[];
 }
 
-export function DependenciesSection({ objectId, disabled, onOpenObject }: { objectId: string; disabled: boolean; onOpenObject: (id: string) => void }) {
+export function DependenciesSection({ objectId, disabled, hideWhenEmpty = false, revealEmpty = false, onContentChange, onOpenObject }: { objectId: string; disabled: boolean; hideWhenEmpty?: boolean; revealEmpty?: boolean; onContentChange?: (hasContent: boolean) => void; onOpenObject: (id: string) => void }) {
   const [deps, setDeps] = useState<Deps | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,6 +24,8 @@ export function DependenciesSection({ objectId, disabled, onOpenObject }: { obje
   const [candidates, setCandidates] = useState<DepEntry[]>([]);
   const [searching, setSearching] = useState(false);
   const lock = useRef(false);
+  const hasContent = (!!deps && (deps.blockedBy.length > 0 || deps.blocking.length > 0)) || !!error;
+  useEffect(() => { onContentChange?.(hasContent); }, [hasContent, onContentChange]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,6 +121,8 @@ export function DependenciesSection({ objectId, disabled, onOpenObject }: { obje
       setBusy(false);
     }
   }
+
+  if (hideWhenEmpty && !revealEmpty && !hasContent && !pickerOpen && !busy) return null;
 
   return (
     <section aria-label="Dependencies" className="mt-4 border-t border-slate-200 pt-3">
