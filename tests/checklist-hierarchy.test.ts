@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "@/lib/db/schema";
 import { COMPLETION_NEXT_ACTION, deriveNextAction, sortChecklist, withDerivedCompletion } from "@/lib/objects/next-action";
@@ -118,6 +119,18 @@ describe("hierarchical checklist persistence", () => {
     await createChecklistItem(object.id, "Sand top", parent.id);
     await deleteChecklistItem(parent.id, object.id);
     expect((await getObject(object.id))!.checklist).toHaveLength(0);
+  });
+
+  it("persists the parent's derived completion after deleting its last incomplete child", async () => {
+    const object = await createObject({ title: "Desk" });
+    const parent = await createChecklistItem(object.id, "Sand");
+    const done = await createChecklistItem(object.id, "Sand top", parent.id);
+    const pending = await createChecklistItem(object.id, "Sand legs", parent.id);
+    await updateChecklistItem(done.id, true);
+    await deleteChecklistItem(pending.id, object.id);
+    const [stored] = await db.select().from(schema.checklistItems).where(eq(schema.checklistItems.id, parent.id));
+    expect(stored.completed).toBe(true);
+    expect((await getObject(object.id))!.checklist).toHaveLength(2);
   });
 
   it("normalizes sibling positions after a delete", async () => {

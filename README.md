@@ -11,6 +11,23 @@ A personal object-based Kanban application.
 - dnd-kit
 - PostgreSQL + Drizzle ORM
 
+## Current deployment
+
+The current deployment, confirmed by the owner, is:
+
+```text
+GitHub repository → Vercel application → Neon PostgreSQL
+```
+
+Vercel builds and deploys the application from its connected GitHub repository.
+The deployed application uses Neon PostgreSQL through its server-side database
+configuration. Production environment variables and secrets belong in Vercel;
+do not commit credentials or expose them through `NEXT_PUBLIC_` variables.
+
+The NAS/Docker setup describes a planned self-hosting option, not the current
+production environment. Docker host-port and loopback settings do not control
+the Vercel deployment. The instructions below are for local development.
+
 ## Getting Started
 
 1. Install dependencies:

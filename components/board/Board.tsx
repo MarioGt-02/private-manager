@@ -11,6 +11,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { deriveNextAction, withDerivedCompletion } from "@/lib/objects/next-action";
+import { removeChecklistSubtree } from "@/lib/objects/checklist";
 import { COLUMNS, isStatus } from "@/lib/types/object";
 import type { ManagedObject, RecurrenceConfig } from "@/lib/types/object";
 import type { RecurrenceFormInput } from "@/components/recurrence/RecurrenceControls";
@@ -397,7 +398,11 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   async function handleDeleteChecklist(objectId: string, itemId: string) {
     const previous = objects.find((object) => object.id === objectId);
     if (!previous) return;
-    setObjects((items) => items.map((object) => object.id === objectId ? { ...object, checklist: object.checklist.filter((item) => item.id !== itemId) } : object));
+    setObjects((items) => items.map((object) => {
+      if (object.id !== objectId) return object;
+      const checklist = removeChecklistSubtree(object.checklist, itemId);
+      return { ...object, checklist, nextAction: deriveNextAction(checklist) };
+    }));
     try { await deleteChecklistItemAction({ objectId, itemId }); setObjects((items) => items.map((object) => object.id === objectId ? { ...object, nextAction: deriveNextAction(object.checklist) } : object)); refreshActivity(objectId); } catch { setObjects((items) => items.map((object) => object.id === objectId ? previous : object)); throw new Error("Could not delete the checklist item."); }
   }
 

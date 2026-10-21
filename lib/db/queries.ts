@@ -781,6 +781,7 @@ export async function deleteChecklistItem(itemId: string, objectId: string): Pro
     for (const [position, sibling] of siblings.entries()) {
       await tx.update(checklistItems).set({ position, updatedAt: new Date() }).where(eq(checklistItems.id, sibling.id));
     }
+    await syncParentCompletion(tx, objectId);
     const all = await tx.select().from(checklistItems).where(eq(checklistItems.objectId, objectId));
     await tx.update(objects).set({ nextAction: deriveNextAction(all), updatedAt: new Date() }).where(eq(objects.id, objectId));
   });

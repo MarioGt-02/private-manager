@@ -1,5 +1,6 @@
 import type { ManagedObject } from "@/lib/types/object";
 import { deriveNextAction } from "@/lib/objects/next-action";
+import { removeChecklistSubtree } from "@/lib/objects/checklist";
 import { manualCreateObjectSchema } from "@/lib/validation/manual-edit";
 const text = "安装120×60cm电竞洞洞板 — Design a calm workspace with a deliberately long bilingual title";
 export const fixture = {
@@ -39,7 +40,7 @@ export async function setChecklistItemCompleted(id: string, completed: boolean) 
 export async function updateObjectFieldsAction({field,value}: {field: "title"|"goal"|"currentState"|"nextAction";value:string}) { await mutate(field === "currentState" ? "object_edited" : "plan_edited", () => { current()[field] = value.trim(); }); return structuredClone(current()); }
 export async function addChecklistItemAction(_id:string,title:string) { const item = {id:`fixture-added-${current().checklist.length}`,parentId:null,title,completed:false,position:current().checklist.length}; await mutate("checklist_item_added", () => { current().checklist.push(item); }); return item; }
 export async function renameChecklistItemAction({itemId,title}:{itemId:string;title:string}) { await mutate("checklist_item_renamed", () => { current().checklist.find((item)=>item.id===itemId)!.title = title; }); return {...current().checklist.find((item)=>item.id===itemId)!}; }
-export async function deleteChecklistItemAction({itemId}:{itemId:string}) { await mutate("checklist_item_deleted", () => { current().checklist = current().checklist.filter((item)=>item.id!==itemId); }); }
+export async function deleteChecklistItemAction({itemId}:{itemId:string}) { await mutate("checklist_item_deleted", () => { current().checklist = removeChecklistSubtree(current().checklist, itemId); }); }
 export async function reorderChecklistItemsAction({orderedItemIds}:{orderedItemIds:string[]}) { await mutate("checklist_reordered", () => { current().checklist = orderedItemIds.map((id,position)=>({...current().checklist.find((item)=>item.id===id)!,position})); }); return structuredClone(current().checklist); }
 export async function updateObjectRecurrenceAction(_id: string, config: import("@/lib/types/object").RecurrenceFormInput | null) { await mutate("recurrence_changed", () => { current().recurrence = config ? { ...config, seriesId: current().id, previousOccurrenceId: null, nextOccurrenceId: null } : null; }); return structuredClone(current()); }
 export async function updateOccurrenceNoteAction(_id: string, note: string) { await mutate("occurrence_note_changed", () => { current().occurrenceNote = note; }); return structuredClone(current()); }
