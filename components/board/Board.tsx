@@ -20,6 +20,7 @@ import { ObjectCardOverlay } from "./ObjectCard";
 import { MobileBoard } from "./MobileBoard";
 import { CancelDropZone, CANCEL_DROP_ID, ARCHIVE_DROP_ID, OBJECT_DROP_PREFIX, boardCollisionDetection } from "./CancelDropZone";
 import { CancelObjectDialog } from "./CancelObjectDialog";
+import { ArchiveAllDialog } from "./ArchiveAllDialog";
 import { ObjectDrawer } from "./ObjectDrawer";
 import { ManualCreateDialog } from "./ManualCreateDialog";
 import {
@@ -95,6 +96,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
   const [historicalObject, setHistoricalObject] = useState<ManagedObject | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Pick<ManagedObject, "id" | "title"> | null>(null);
+  const [archiveAllOpen, setArchiveAllOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isAICreateOpen, setIsAICreateOpen] = useState(false);
   const [isManualCreateOpen, setIsManualCreateOpen] = useState(false);
@@ -438,6 +440,24 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
     if (object.archivedAt) { setSelectedId(null); setArchiveStatus(object.status); }
     else if (selectedObject?.id === id) setSelectedId(id);
   }
+  async function handleArchiveAll() {
+    const targets = visibleObjects.filter((object) => object.status === "done");
+    if (!targets.length) return;
+    const previousObjects = objects;
+    const ids = new Set(targets.map((object) => object.id));
+    setObjects((items) => items.filter((item) => !ids.has(item.id)));
+    setError(null);
+    try {
+      await Promise.all(targets.map(async (object) => {
+        const response = await fetch(`/api/objects/${encodeURIComponent(object.id)}/lifecycle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "archive" }) });
+        if (!response.ok) throw new Error("Could not archive Object.");
+      }));
+      setHistoryVersion((version) => version + 1);
+    } catch {
+      setObjects(previousObjects);
+      throw new Error("Could not archive all Done Objects.");
+    }
+  }
   function handleObjectCreated(object: ManagedObject) {
     setObjects((prev) => [...prev, object]);
     setHistoricalObject(null);
@@ -545,6 +565,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
                 onCompleteNextAction={handleCompleteNextAction}
                 onEstimateApplied={handleEstimateApplied}
                 onArchive={() => { setArchiveStatus(column.id); setSelectedId(null); setHistoricalObject(null); }}
+                onArchiveAll={column.id === "done" ? () => setArchiveAllOpen(true) : undefined}
                 onUpcoming={column.id === "idea" ? () => void openUpcomingOccurrences() : undefined}
               />
             ))}
@@ -607,6 +628,7 @@ function BoardContent({ initialObjects, initialError = null }: BoardProps) {
       />
 
       {cancelTarget && <CancelObjectDialog key={cancelTarget.id} object={cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={() => handleLifecycle(cancelTarget.id, "cancel")} />}
+      {archiveAllOpen && <ArchiveAllDialog count={visibleObjects.filter((o) => o.status === "done").length} onClose={() => setArchiveAllOpen(false)} onConfirm={handleArchiveAll} />}
 
       {isManualCreateOpen && <ManualCreateDialog onClose={() => setIsManualCreateOpen(false)} onCreated={handleObjectCreated} />}
       <AICreateDialog

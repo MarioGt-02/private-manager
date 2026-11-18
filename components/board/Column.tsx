@@ -19,6 +19,7 @@ interface ColumnProps {
   minimizedIds: Set<string>;
   pendingIds: Set<string>;
   onArchive: () => void;
+  onArchiveAll?: () => void;
   onUpcoming?: () => void;
   onSelect: (id: string) => void;
   onToggleMinimize: (id: string) => void;
@@ -36,7 +37,7 @@ function ObjectDropTarget({ object, onSelect, selected, minimized, onToggleMinim
   </div>;
 }
 
-export function Column({ column, objects, onSelect, selectedId, onArchive, onUpcoming, minimizedIds, pendingIds, onToggleMinimize, onCompleteNextAction, onEstimateApplied }: ColumnProps) {
+export function Column({ column, objects, onSelect, selectedId, onArchive, onArchiveAll, onUpcoming, minimizedIds, pendingIds, onToggleMinimize, onCompleteNextAction, onEstimateApplied }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const storageKey = `private-manager:column-width:${column.id}`;
   const [width, setWidth] = useState(() => {
@@ -73,6 +74,7 @@ export function Column({ column, objects, onSelect, selectedId, onArchive, onUpc
         <h2 className="text-sm font-semibold text-slate-700">{column.label}</h2>
         <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs font-medium tabular-nums text-slate-500 ring-1 ring-slate-200">{objects.length}</span>
         {column.id === "idea" && onUpcoming && <button type="button" className="btn-tertiary" aria-label="Upcoming occurrences" title="Upcoming occurrences" onClick={onUpcoming}>◷</button>}
+        {column.id === "done" && onArchiveAll && objects.length > 0 && <button type="button" className="btn-tertiary" aria-label="Archive all Done Objects" title="Archive all Done Objects" onClick={onArchiveAll}>📦 存档全部</button>}
         <button type="button" className="btn-tertiary" aria-label={`Archived ${column.label} Objects`} title={`Archived — ${column.label}`} onClick={onArchive}>🗂</button>
       </header>
       <div className="shrink-0 px-2.5 pb-[640px]" style={{ columnWidth: 250, columnGap: 10 }}>
